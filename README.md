@@ -212,7 +212,7 @@ python scripts/ingest_fast.py --documents documents/
 python scripts/ingest_fast.py --force-pages
 ```
 
-This completes in 5–10 minutes and makes vector search and PageIndex immediately usable.
+This completes in 5–10 minutes and makes vector search and full-page vector search immediately usable.
 
 ### 5. Ingest into the knowledge graph (optional, overnight)
 
@@ -223,7 +223,18 @@ python scripts/ingest_graph.py --limit 50
 
 Progress is tracked in `graph_progress.json`. Re-running the script skips already-processed chunks.
 
-### 6. Start the API server
+### 6. (Optional) Index PDFs into the PageIndex cloud
+
+The `pageindex_search` tool queries VectifyAI's PageIndex cloud API and only works if your PDFs have been uploaded and their `doc_id`s recorded in `pageindex_trees/index.json`. Run this after step 4 if you want that tool:
+
+```bash
+# Requires PAGEINDEX_API_KEY in .env (get one at https://pageindex.ai)
+python ingestion/ingest_pageindex.py
+```
+
+If you skip this, `pageindex_search` returns a "no documents indexed" message and the agent falls back to `page_vector_search`. The other eight tools work without it.
+
+### 7. Start the API server
 
 ```bash
 python -m agent.api
@@ -231,7 +242,7 @@ python -m agent.api
 # Interactive docs at http://localhost:8058/docs
 ```
 
-### 7. Use the CLI
+### 8. Use the CLI
 
 ```bash
 # In a second terminal
