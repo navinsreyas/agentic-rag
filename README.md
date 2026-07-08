@@ -277,7 +277,7 @@ Full-page vector search treats each PDF page as an atomic retrieval unit. Pages 
 
 ### Why separate ingestion from graph building
 
-Knowledge graph ingestion via Graphiti requires one LLM call per document chunk to extract entities and relationships. With 552 chunks in the current corpus, that is 552 sequential API calls. At Groq's free-tier rate limits, this process takes 6–20 hours to complete.
+Knowledge graph ingestion via Graphiti makes **several LLM calls per chunk — roughly 4–5** (entity extraction, entity deduplication, fact/edge extraction, edge deduplication, and temporal resolution), not one. With 552 chunks in the current corpus that is on the order of 2,000–2,800 sequential LLM calls. At Groq's free-tier rate limits, this runs for many hours.
 
 If vector search and graph building were coupled in a single pipeline, a rate-limit error three hours in would force a full restart. The decoupled design solves this: `scripts/ingest_fast.py` runs the embedding-only pipeline to completion in 5–10 minutes, making vector search and the PageIndex immediately available. `scripts/ingest_graph.py` runs separately and tracks each processed chunk ID in `graph_progress.json`, so the script can be interrupted at any point and resumed from where it left off — with `--limit N` to control how many chunks are processed per session.
 
