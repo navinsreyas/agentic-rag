@@ -11,7 +11,7 @@
 
 ## Overview
 
-A production-grade document intelligence system that answers questions over AI safety research papers using three complementary retrieval strategies: hybrid vector search, a temporal knowledge graph, and a semantic PageIndex. The agent — built on Pydantic AI with Groq Llama-3.3-70b as the primary model — routes each incoming question to the appropriate tool based on the question type, then synthesises a cited response from the retrieved context. The backend uses PostgreSQL with pgvector for chunk and page-level embeddings, Neo4j with Graphiti for temporal entity-relationship extraction, and FastAPI for streaming and non-streaming HTTP endpoints. Ingestion is split into two decoupled pipelines: a fast embedding-only run that completes in minutes, and an overnight graph-building run that safely tracks progress across restarts.
+A production-grade document intelligence system that answers questions over a small corpus of AI-safety and big-tech AI-strategy documents using three complementary retrieval strategies: hybrid vector search, a temporal knowledge graph, and full-page vector search. The agent — built on Pydantic AI with Groq Llama-3.3-70b as the primary model — routes each incoming question to the appropriate tool based on the question type, then synthesises a cited response from the retrieved context. The backend uses PostgreSQL with pgvector for chunk and page-level embeddings, Neo4j with Graphiti for temporal entity-relationship extraction, and FastAPI for streaming and non-streaming HTTP endpoints. Ingestion is split into two decoupled pipelines: a fast embedding-only run that completes in minutes, and an overnight graph-building run that safely tracks progress across restarts.
 
 ---
 
@@ -19,15 +19,17 @@ A production-grade document intelligence system that answers questions over AI s
 
 ### What's Complete ✅
 - Vector search + hybrid search — working
-- Semantic PageIndex — working, 201 page embeddings
+- Full-page vector search — working, 158 page embeddings
+- Knowledge graph — populated (294 episodes, 1,241 entities, 1,610 relationship facts in Neo4j)
 - FastAPI server + CLI — working
 - Groq as primary LLM — configured and working
 - OpenAI fallback — implemented (auto-retry on tool-call / rate-limit errors)
-- All 8 tools registered and named correctly in agent + system prompt
+- All 9 tools registered and named correctly in agent + system prompt
 
 ### What's Pending ⚠️
-- **Graph ingestion** — `scripts/ingest_graph.py` has not been run yet. Neo4j is empty. Graph tools (`graph_search`, `get_entity_relationships`, `get_entity_timeline`) are wired and functional but return no data until graph ingestion completes.
-- **RSP document** — Anthropic's Responsible Scaling Policy PDF has a null-byte encoding issue and could not be ingested. Pending a fix with `pdfplumber` or `pymupdf`.
+- **Graph coverage is partial** — the graph was built from a subset of chunks (`graph_progress.json` tracks resumable progress). Graph tools (`graph_search`, `get_entity_relationships`, `get_entity_timeline`) are wired, functional, and return data, but coverage does not span every chunk.
+- **RSP document** — Anthropic's Responsible Scaling Policy PDF has a null-byte encoding issue and is **not** among the 5 ingested documents. Pending a fix with `pdfplumber` or `pymupdf`.
+- **o1-system-card.pdf** — not ingested; it shares the title "OpenAI o1 System Card" with the already-ingested `OpenAI-2024.pdf`, and title-based dedup skips it.
 - **Evaluation** — No automated metrics. All testing has been manual via the CLI.
 - **Frontend** — The streaming API is production-ready but there is no React/Next.js UI yet. The CLI is the primary interface.
 
@@ -114,14 +116,18 @@ Standard chunk retrieval suffers from context fragmentation: a methodology that 
 
 ## Project Stats
 
+All counts below are read directly from the live databases (Postgres + Neo4j).
+
 | Metric | Value |
 |---|---|
-| Documents ingested | 7 (5 PDFs, 2 markdown) |
-| Pages indexed | 223 pages with semantic embeddings |
+| Documents ingested | 5 (3 PDFs, 2 markdown) |
+| Pages indexed | 158 full-page embeddings |
 | Chunks stored | 552 at 1536-dimension embeddings |
-| Source material | 5 AI safety reports from Anthropic and OpenAI |
+| Source material | Anthropic safety-research info sheet, OpenAI o1 system card, a redacted risk report (PDFs); Apple and Google AI-strategy notes (markdown) |
 | Embedding dimensions | 1536 (text-embedding-3-small) |
-| Graph ingestion | Pending (chunks ready, overnight run required) |
+| Knowledge graph | 294 episodes, 1,241 entities, 1,610 relationship facts (Neo4j) |
+
+> **Note on the repo's document folders:** `documents/` holds the 7 source files, of which 5 are currently ingested (see caveats above). `big_tech_docs/` contains 19 additional big-tech funding/business markdown files that are **not** ingested by the default pipeline — `scripts/ingest_fast.py` only reads the `--documents` folder (default `documents/`). To include them, run `python scripts/ingest_fast.py --documents big_tech_docs/` as a second pass.
 
 ---
 
@@ -173,7 +179,7 @@ FALLBACK_LLM_BASE_URL=
 
 ### 3. Initialise the database schema
 
-Run `sql/schema.sql` against your PostgreSQL instance. This creates the `documents`, `chunks`, `page_embeddings`, and `sessions` tables with the correct pgvector indexes and the `match_pages()` SQL function.
+Run `sql/schema.sql` against your PostgreSQL instance. This creates the `documents`, `chunks`, `page_embeddings`, `sessions`, and `messages` tables (the `messages` table is required by `agent/api.py` for session history) with the correct pgvector indexes and the `match_pages()` SQL function.
 
 > **Note:** If your embedding model is not `text-embedding-3-small`, update all `vector(1536)` occurrences in `schema.sql` to match your model's output size before running (currently lines 35, 58, and 71). Line numbers drift as the file changes — `grep -n 'vector(1536)' sql/schema.sql` to find them all.
 
@@ -260,7 +266,7 @@ Rather than switching entirely to a paid provider, the system registers a fallba
 
 ## Known Limitations
 
-1. **Knowledge graph is currently empty.** Document chunks have been ingested into PostgreSQL and are ready, but `ingest_graph.py` has not yet completed a full run against Neo4j. Graph tools (`graph_search`, `get_entity_relationships`, `get_entity_timeline`) will return empty results until this is done.
+1. **Knowledge graph coverage is partial.** The graph is populated (294 episodes, 1,241 entities, 1,610 relationship facts), but `ingest_graph.py` has not processed every chunk in `chunks`, so graph tools (`graph_search`, `get_entity_relationships`, `get_entity_timeline`) may return sparse results for topics whose chunks were not yet graph-enriched.
 
 2. **RSP document has a UTF-8 encoding issue.** Anthropic's Responsible Scaling Policy PDF contains characters that PyPDF2 cannot decode cleanly on Windows (cp1252 environment). Some pages may have garbled text in the extracted content. A fix using `pdfplumber` or `pymupdf` is pending.
 
