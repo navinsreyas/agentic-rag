@@ -52,7 +52,7 @@ A production-grade document intelligence system that answers questions over a sm
                      │       Pydantic AI Agent       │
                      │  Primary : Groq Llama-3.3-70b │
                      │  Fallback: OpenAI gpt-4o-mini │
-                     │   9 tools · one tool per turn │
+                     │ 9 tools · 1/response, ≤2/turn │
                      └──┬───────┬────────┬─────────┬─┘
                         │       │        │         │
       ┌─────────────────▼┐ ┌────▼───────┐ ┌▼─────────────────┐ ┌▼───────────────┐
@@ -82,6 +82,8 @@ A production-grade document intelligence system that answers questions over a sm
 ## The Retrieval Tools
 
 The agent registers **9 tools** in total: two vector tools, three graph tools, two page-level tools, and two document tools.
+
+**Tool-calling policy:** the system prompt enforces exactly one tool call per model response. Because a question can need a follow-up retrieval, a hard per-turn cap (`_MAX_TOOL_CALLS_PER_TURN = 2` in `agent.py`) permits at most one additional call in a later response and then forces the agent to answer — this prevents the tool-call loops that Llama occasionally falls into. So: **one tool per response, at most two per question.**
 
 ### 1. Vector / Hybrid Search — `vector_search`, `hybrid_search`
 
