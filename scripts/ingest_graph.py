@@ -27,6 +27,15 @@ from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 import argparse
 
+# On Windows the default console code page (cp1252) cannot encode the Unicode
+# glyphs this script prints (→, ✓, ✗), which otherwise crashes with
+# UnicodeEncodeError. Force UTF-8 output where supported.
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+except Exception:
+    pass
+
 # ---------------------------------------------------------------------------
 # Path setup — add project root to sys.path
 # ---------------------------------------------------------------------------

@@ -14,6 +14,15 @@ from typing import Dict, Any, List
 from datetime import datetime
 import sys
 
+# On Windows the default console code page (cp1252) cannot encode the Unicode
+# glyphs this CLI prints (emoji banner, box drawing), which otherwise crashes
+# with UnicodeEncodeError. Force UTF-8 output where supported.
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+except Exception:
+    pass
+
 # ANSI color codes for better formatting
 class Colors:
     BLUE = '\033[94m'
