@@ -85,7 +85,7 @@ The agent registers **9 tools** in total: two vector tools, three graph tools, t
 
 ### 1. Vector / Hybrid Search — `vector_search`, `hybrid_search`
 
-Documents are split into 800-token chunks with 150-token overlap, embedded with `text-embedding-3-small`, and stored in a `chunks` table with a `pgvector` index. When a user asks a broad conceptual question — "What is Constitutional AI?", "What challenges does the paper identify?" — the agent embeds the query and retrieves the top-*k* chunks by cosine similarity. `hybrid_search` adds a BM25-style keyword component, which helps when the query contains specific terminology that may not be semantically unique. This is the highest-recall path and the first tool used for most general questions.
+Documents are split into character-based chunks (the ingestion default is ~1000 characters with 200-character overlap; the 552 stored chunks average ~730 characters ≈ 180 tokens each), embedded with `text-embedding-3-small`, and stored in a `chunks` table with a `pgvector` index. When a user asks a broad conceptual question — "What is Constitutional AI?", "What challenges does the paper identify?" — the agent embeds the query and retrieves the top-*k* chunks by cosine similarity. `hybrid_search` adds a BM25-style keyword component, which helps when the query contains specific terminology that may not be semantically unique. This is the highest-recall path and the first tool used for most general questions.
 
 ### 2. Knowledge Graph — `graph_search`, `get_entity_relationships`, `get_entity_timeline`
 
