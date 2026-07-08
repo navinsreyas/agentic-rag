@@ -38,48 +38,50 @@ A production-grade document intelligence system that answers questions over a sm
 ## Architecture
 
 ```
-                         User Query
-                              │
-                              ▼
-               ┌──────────────────────────────┐
-               │      FastAPI  (api.py)        │
-               │  /chat  │  /chat/stream        │
-               │  /search/vector │ /search/graph│
-               └──────────────┬───────────────-┘
-                              │
-                              ▼
-               ┌──────────────────────────────┐
-               │     Pydantic AI Agent         │
-               │  Primary : Groq Llama-3.3-70b │
-               │  Fallback: OpenAI gpt-4o-mini │
-               │   (auto-retry on tool errors) │
-               └───┬─────────────┬─────────┬───┘
-                   │             │         │
-        ┌──────────▼───┐  ┌──────▼──────┐  ┌──────▼───────────┐
-        │ vector_search │  │graph_search │  │ page_index_search │
-        │ hybrid_search │  │get_entity_  │  │                   │
-        │               │  │relationships│  │                   │
-        │               │  │get_entity_  │  │                   │
-        │               │  │timeline     │  │                   │
-        └──────┬────────┘  └──────┬──────┘  └──────┬────────────┘
-               │                  │                 │
-               ▼                  ▼                 ▼
-        ┌────────────┐    ┌──────────────┐   ┌────────────────┐
-        │ PostgreSQL │    │    Neo4j     │   │  PostgreSQL    │
-        │  chunks    │    │  + Graphiti  │   │ page_embeddings│
-        │  pgvector  │    │ Temporal KG  │   │   pgvector     │
-        └────────────┘    └──────────────┘   └────────────────┘
-               │                  │                 │
-               └──────────────────┴─────────────────┘
-                                  │
-                                  ▼
-                         Synthesised Response
-                       (with document citations)
+                                 User Query
+                                     │
+                                     ▼
+                     ┌──────────────────────────────┐
+                     │        FastAPI  (api.py)      │
+                     │  /chat   /chat/stream         │
+                     │  /search/{vector,graph,hybrid}│
+                     └───────────────┬──────────────-┘
+                                     │
+                                     ▼
+                     ┌──────────────────────────────┐
+                     │       Pydantic AI Agent       │
+                     │  Primary : Groq Llama-3.3-70b │
+                     │  Fallback: OpenAI gpt-4o-mini │
+                     │   9 tools · one tool per turn │
+                     └──┬───────┬────────┬─────────┬─┘
+                        │       │        │         │
+      ┌─────────────────▼┐ ┌────▼───────┐ ┌▼─────────────────┐ ┌▼───────────────┐
+      │ vector_search    │ │graph_search│ │page_vector_search│ │pageindex_search│
+      │ hybrid_search    │ │get_entity_ │ │ (full PDF pages) │ │ (VectifyAI     │
+      │                  │ │relationships│ │                  │ │  cloud tree)   │
+      │                  │ │get_entity_ │ │                  │ │                │
+      │                  │ │timeline    │ │                  │ │                │
+      └────────┬─────────┘ └─────┬──────┘ └────────┬─────────┘ └───────┬────────┘
+               │                 │                 │                   │
+               ▼                 ▼                 ▼                   ▼
+      ┌────────────────┐ ┌──────────────┐ ┌────────────────┐ ┌────────────────┐
+      │   PostgreSQL   │ │    Neo4j     │ │  PostgreSQL    │ │ api.pageindex  │
+      │     chunks     │ │  + Graphiti  │ │ page_embeddings│ │    .ai         │
+      │    pgvector    │ │ Temporal KG  │ │   pgvector     │ │  (cloud API)   │
+      └────────────────┘ └──────────────┘ └────────────────┘ └────────────────┘
+
+      Document tools (9th/8th): get_document, list_documents → PostgreSQL documents/chunks
+                                     │
+                                     ▼
+                            Synthesised Response
+                          (with document citations)
 ```
 
 ---
 
-## The Three Retrieval Tools
+## The Retrieval Tools
+
+The agent registers **9 tools** in total: two vector tools, three graph tools, two page-level tools, and two document tools.
 
 ### 1. Vector / Hybrid Search — `vector_search`, `hybrid_search`
 
@@ -89,9 +91,19 @@ Documents are split into 800-token chunks with 150-token overlap, embedded with 
 
 Each document chunk is also passed through Graphiti, which extracts named entities and their temporal relationships and stores them as episodes in Neo4j. This creates a structured, queryable layer on top of the unstructured text. `graph_search` performs semantic search directly over the graph's fact nodes; `get_entity_relationships` traverses the graph from a named entity outward to find what it connects to; `get_entity_timeline` returns the chronological sequence of facts about an entity, including when each fact became valid or invalid. These tools excel at questions like "How does chain-of-thought reasoning relate to interpretability?" or "How has OpenAI's approach to safety evolved?" — questions that require understanding connections between concepts, not just finding similar text.
 
-### 3. Semantic PageIndex — `page_index_search`
+### 3. Full-Page Vector Search — `page_vector_search`
 
-Standard chunk retrieval suffers from context fragmentation: a methodology that spans three paragraphs gets split across multiple chunks, none of which individually scores highly enough to be retrieved. The PageIndex solves this by embedding and storing complete PDF pages as atomic units in a `page_embeddings` table. When the agent calls `page_index_search`, it retrieves the 3 pages with the highest semantic similarity to the query and returns them in full — preserving numbered steps, tables, and multi-paragraph arguments that chunks would sever. This is the right tool whenever the question demands precise wording, exact statistics, or a complete section rather than a synthesised excerpt.
+Standard chunk retrieval suffers from context fragmentation: a methodology that spans three paragraphs gets split across multiple chunks, none of which individually scores highly enough to be retrieved. Full-page vector search solves this by embedding and storing complete PDF pages as atomic units in a `page_embeddings` table. When the agent calls `page_vector_search`, it retrieves the 3 pages with the highest semantic (embedding) similarity to the query and returns them in full — preserving numbered steps, tables, and multi-paragraph arguments that chunks would sever. This is the right tool whenever the question demands precise wording, exact statistics, or a complete section rather than a synthesised excerpt.
+
+> **Naming note:** this tool is *full-page vector search* — it ranks whole pages by embedding similarity. It is **not** the vectorless, tree-reasoning "PageIndex" technique. That is a separate tool, `pageindex_search` (below).
+
+### 4. PageIndex cloud reasoning — `pageindex_search`
+
+`pageindex_search` calls VectifyAI's PageIndex cloud API (`api.pageindex.ai`). Instead of embedding similarity, the service builds a hierarchical section tree of each uploaded PDF and uses server-side LLM reasoning to navigate that tree top-down to the specific section that answers the query. It is the right tool for precise section lookups in structured documents ("what does the policy say about X", "according to section Y…"). Uploaded documents are tracked in `pageindex_trees/index.json`; requires `PAGEINDEX_API_KEY` and the `pageindex` package.
+
+### Document tools — `get_document`, `list_documents`
+
+`list_documents` returns every ingested document with its title, source, and chunk count; `get_document` fetches one document's full content plus all its chunks by UUID. These support "what sources are available?" and "retrieve the full X document" style requests.
 
 ---
 
@@ -234,21 +246,21 @@ python cli.py --port 8058
 | Query | Tool triggered | Sample answer |
 |---|---|---|
 | "What is Constitutional AI?" | `vector_search` | "Constitutional AI is a training methodology developed by Anthropic in which an AI model critiques and revises its own outputs against a set of principles..." |
-| "What does the RSP say about ASL-3 safety requirements?" | `page_index_search` | Returns the full RSP page defining ASL-3 thresholds — including the exact capability criteria and required mitigations — without truncation |
+| "What does the RSP say about ASL-3 safety requirements?" | `page_vector_search` | Returns the full RSP page defining ASL-3 thresholds — including the exact capability criteria and required mitigations — without truncation |
 | "How is chain-of-thought reasoning connected to interpretability?" | `graph_search` | "The knowledge graph links chain-of-thought reasoning to mechanistic interpretability via shared nodes around transparency and model behaviour..." |
 | "What connects RLHF to AI alignment?" | `get_entity_relationships` | "RLHF connects to Constitutional AI (refinement), InstructGPT (application), and human feedback mechanisms (dependency)..." |
 | "How has OpenAI's approach to safety evolved over time?" | `get_entity_timeline` | "2022: InstructGPT introduces RLHF as primary alignment technique. 2023: GPT-4 system card describes multi-layered red-teaming. 2024: Preparedness Framework defines tiered risk thresholds..." |
-| "Summarise the methodology for evaluating dangerous capabilities" | `page_index_search` | Returns the complete evaluation pipeline pages, preserving the numbered steps and decision criteria intact |
+| "Summarise the methodology for evaluating dangerous capabilities" | `page_vector_search` | Returns the complete evaluation pipeline pages, preserving the numbered steps and decision criteria intact |
 
 ---
 
 ## Design Decisions
 
-### Why PageIndex over pure chunking
+### Why full-page vector search over pure chunking
 
 The core limitation of chunk-based retrieval is context fragmentation. A semantic chunker splits documents at token boundaries — which means a 600-token methodology section spanning four paragraphs will be divided across three chunks, none of which individually contains a complete argument. When the agent retrieves the top-5 chunks for a query like "explain the full evaluation process", it may receive disjointed fragments that require significant reconstruction before they become usable.
 
-The PageIndex treats each PDF page as an atomic retrieval unit. Pages are embedded whole and stored in a separate `page_embeddings` table. When the agent calls `page_index_search`, it retrieves 1–3 complete pages rather than assembled fragments — preserving tables, numbered steps, and cross-sentence arguments as the author intended. The trade-off is a larger per-call context, but this is acceptable because the agent only routes to this tool when the question explicitly requires full-context fidelity, not general semantic similarity.
+Full-page vector search treats each PDF page as an atomic retrieval unit. Pages are embedded whole and stored in a separate `page_embeddings` table. When the agent calls `page_vector_search`, it retrieves 1–3 complete pages rather than assembled fragments — preserving tables, numbered steps, and cross-sentence arguments as the author intended. The trade-off is a larger per-call context, but this is acceptable because the agent only routes to this tool when the question explicitly requires full-context fidelity, not general semantic similarity.
 
 ### Why separate ingestion from graph building
 
@@ -290,7 +302,7 @@ Rather than switching entirely to a paid provider, the system registers a fallba
 ```
 agentic-rag-knowledge-graph/
 ├── agent/
-│   ├── agent.py          # Pydantic AI agent — 8 registered tools
+│   ├── agent.py          # Pydantic AI agent — 9 registered tools
 │   ├── api.py            # FastAPI app — streaming + non-streaming endpoints
 │   ├── providers.py      # LLM provider abstraction (Groq / OpenAI / fallback)
 │   ├── prompts.py        # System prompt + tool routing rules
