@@ -414,7 +414,6 @@ async def chat(request: ChatRequest):
             message=response,
             session_id=session_id,
             tools_used=tools_used,
-            metadata={"search_type": str(request.search_type)}
         )
         
     except Exception as e:

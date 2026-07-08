@@ -30,9 +30,6 @@ class ChatRequest(BaseModel):
     session_id: Optional[str] = Field(None, description="Session ID for conversation continuity")
     user_id: Optional[str] = Field(None, description="User identifier")
     metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
-    search_type: SearchType = Field(default=SearchType.HYBRID, description="Type of search to perform")
-    
-    model_config = ConfigDict(use_enum_values=True)
 
 
 class SearchRequest(BaseModel):
@@ -40,8 +37,7 @@ class SearchRequest(BaseModel):
     query: str = Field(..., description="Search query")
     search_type: SearchType = Field(default=SearchType.HYBRID, description="Type of search")
     limit: int = Field(default=10, ge=1, le=50, description="Maximum results")
-    filters: Dict[str, Any] = Field(default_factory=dict, description="Search filters")
-    
+
     model_config = ConfigDict(use_enum_values=True)
 
 
