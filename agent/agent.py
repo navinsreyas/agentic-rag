@@ -395,8 +395,7 @@ async def get_entity_relationships(
         return early
 
     input_data = EntityRelationshipInput(
-        entity_name=entity_name,
-        depth=2
+        entity_name=entity_name
     )
 
     output = await get_entity_relationships_tool(input_data)

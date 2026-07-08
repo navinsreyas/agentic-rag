@@ -91,7 +91,6 @@ class DocumentListInput(BaseModel):
 class EntityRelationshipInput(BaseModel):
     """Input for entity relationship query."""
     entity_name: str = Field(..., description="Name of the entity")
-    depth: int = Field(default=2, description="Maximum traversal depth")
 
 
 class EntityTimelineInput(BaseModel):
@@ -286,17 +285,14 @@ async def get_entity_relationships_tool(input_data: EntityRelationshipInput) -> 
     """
     try:
         return await get_entity_relationships(
-            entity=input_data.entity_name,
-            depth=input_data.depth
+            entity=input_data.entity_name
         )
-        
+
     except Exception as e:
         logger.error(f"Entity relationship query failed: {e}")
         return {
             "central_entity": input_data.entity_name,
-            "related_entities": [],
-            "relationships": [],
-            "depth": input_data.depth,
+            "related_facts": [],
             "error": str(e)
         }
 

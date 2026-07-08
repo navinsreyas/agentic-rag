@@ -23,6 +23,30 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
+
+def _within_date_range(valid_at: Optional[str], start_d, end_d) -> bool:
+    """
+    Return True if `valid_at` (an ISO datetime string) falls within the
+    inclusive [start_d, end_d] calendar-date range.
+
+    Facts with no parseable `valid_at` are excluded whenever a bound is set,
+    because an undated fact cannot be placed inside a date window. Comparison is
+    done on calendar dates so timezone-aware graph timestamps compare cleanly
+    against naive user-supplied bounds.
+    """
+    if not valid_at:
+        return False
+    try:
+        d = datetime.fromisoformat(str(valid_at).replace("Z", "+00:00")).date()
+    except ValueError:
+        return False
+    if start_d and d < start_d:
+        return False
+    if end_d and d > end_d:
+        return False
+    return True
+
+
 # Help from this PR for setting up the custom clients: https://github.com/getzep/graphiti/pull/601/files
 class GraphitiClient:
     """Manages Graphiti knowledge graph operations."""
@@ -205,20 +229,20 @@ class GraphitiClient:
     
     async def get_related_entities(
         self,
-        entity_name: str,
-        relationship_types: Optional[List[str]] = None,
-        depth: int = 1
+        entity_name: str
     ) -> Dict[str, Any]:
         """
-        Get entities related to a given entity using Graphiti search.
-        
+        Get facts related to a given entity using Graphiti semantic search.
+
+        This performs a focused semantic search over the graph's facts for the
+        named entity. It does not do multi-hop graph traversal or relationship-type
+        filtering — Graphiti's search returns the most relevant facts directly.
+
         Args:
             entity_name: Name of the entity
-            relationship_types: Types of relationships to follow (not used with Graphiti)
-            depth: Maximum depth to traverse (not used with Graphiti)
-        
+
         Returns:
-            Related entities and relationships
+            The central entity and the facts semantically related to it
         """
         if not self._initialized:
             await self.initialize()
@@ -255,33 +279,49 @@ class GraphitiClient:
     ) -> List[Dict[str, Any]]:
         """
         Get timeline of facts for an entity using Graphiti.
-        
+
+        When start_date and/or end_date are supplied, facts are filtered by the
+        calendar date of their `valid_at` timestamp (inclusive). Facts without a
+        `valid_at` cannot be placed in time and are dropped whenever any bound is
+        set. Date-only comparison is used so timezone-aware graph timestamps and
+        naive user-supplied bounds compare safely.
+
         Args:
             entity_name: Name of the entity
-            start_date: Start of time range (not currently used)
-            end_date: End of time range (not currently used)
-        
+            start_date: Inclusive lower bound (or None for no lower bound)
+            end_date: Inclusive upper bound (or None for no upper bound)
+
         Returns:
-            Timeline of facts
+            Timeline of facts, newest first
         """
         if not self._initialized:
             await self.initialize()
-        
+
         # Search for temporal information about the entity
         results = await self.graphiti.search(f"timeline history of {entity_name}")
-        
+
         timeline = []
         for result in results:
+            valid_raw = result.valid_at if hasattr(result, 'valid_at') else None
             timeline.append({
                 "fact": result.fact,
                 "uuid": str(result.uuid),
-                "valid_at": str(result.valid_at) if hasattr(result, 'valid_at') and result.valid_at else None,
-                "invalid_at": str(result.invalid_at) if hasattr(result, 'invalid_at') and result.invalid_at else None
+                "valid_at": str(valid_raw) if valid_raw else None,
+                "invalid_at": str(result.invalid_at) if hasattr(result, 'invalid_at') and result.invalid_at else None,
             })
-        
-        # Sort by valid_at if available
+
+        # Apply inclusive date-range filtering when bounds are provided.
+        if start_date or end_date:
+            start_d = start_date.date() if start_date else None
+            end_d = end_date.date() if end_date else None
+            timeline = [
+                item for item in timeline
+                if _within_date_range(item.get("valid_at"), start_d, end_d)
+            ]
+
+        # Sort by valid_at if available (newest first)
         timeline.sort(key=lambda x: x.get('valid_at') or '', reverse=True)
-        
+
         return timeline
     
     async def get_graph_statistics(self) -> Dict[str, Any]:
@@ -418,20 +458,18 @@ async def search_knowledge_graph(
 
 
 async def get_entity_relationships(
-    entity: str,
-    depth: int = 2
+    entity: str
 ) -> Dict[str, Any]:
     """
-    Get relationships for an entity.
-    
+    Get facts related to an entity via Graphiti semantic search.
+
     Args:
         entity: Entity name
-        depth: Maximum traversal depth
-    
+
     Returns:
         Entity relationships
     """
-    return await graph_client.get_related_entities(entity, depth=depth)
+    return await graph_client.get_related_entities(entity)
 
 
 async def test_graph_connection() -> bool:
