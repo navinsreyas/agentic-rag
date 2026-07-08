@@ -433,8 +433,8 @@ async def get_entity_timeline(
 
     input_data = EntityTimelineInput(
         entity_name=entity_name,
-        start_date=start_date or None,
-        end_date=end_date or None
+        start_date=start_date,
+        end_date=end_date
     )
 
     output = await get_entity_timeline_tool(input_data)

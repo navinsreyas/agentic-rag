@@ -97,8 +97,8 @@ class EntityRelationshipInput(BaseModel):
 class EntityTimelineInput(BaseModel):
     """Input for entity timeline query."""
     entity_name: str = Field(..., description="Name of the entity")
-    start_date: Optional[str] = Field(None, description="Start date (ISO format)")
-    end_date: Optional[str] = Field(None, description="End date (ISO format)")
+    start_date: str = Field("", description="Start date (ISO format), or empty string for no filter")
+    end_date: str = Field("", description="End date (ISO format), or empty string for no filter")
 
 
 # Tool Implementation Functions
