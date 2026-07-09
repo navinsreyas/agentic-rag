@@ -194,7 +194,7 @@ BEGIN
             c.id AS chunk_id,
             c.document_id,
             c.content,
-            ts_rank_cd(to_tsvector('english', c.content), plainto_tsquery('english', query_text)) AS text_sim,
+            ts_rank_cd(to_tsvector('english', c.content), plainto_tsquery('english', query_text))::double precision AS text_sim,
             c.metadata,
             d.title AS doc_title,
             d.source AS doc_source
