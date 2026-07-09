@@ -11,7 +11,15 @@
 
 ## Overview
 
-A production-grade document intelligence system that answers questions over a small corpus of AI-safety and big-tech AI-strategy documents using three complementary retrieval strategies: hybrid vector search, a temporal knowledge graph, and full-page vector search. The agent — built on Pydantic AI with Groq Llama-3.3-70b as the primary model — routes each incoming question to the appropriate tool based on the question type, then synthesises a cited response from the retrieved context. The backend uses PostgreSQL with pgvector for chunk and page-level embeddings, Neo4j with Graphiti for temporal entity-relationship extraction, and FastAPI for streaming and non-streaming HTTP endpoints. Ingestion is split into two decoupled pipelines: a fast embedding-only run that completes in minutes, and an overnight graph-building run that safely tracks progress across restarts.
+A production-grade document intelligence system that answers questions over a small, mixed corpus of **5 ingested documents** using three complementary retrieval strategies: hybrid vector search, a temporal knowledge graph, and full-page vector search. The corpus deliberately spans two domains — AI-safety research and big-tech AI strategy/business — so category labels alone are misleading; the actual documents are:
+
+1. **Anthropic: Safety research** — Anthropic research info sheet (PDF)
+2. **OpenAI o1 System Card** — model safety/capability card (PDF)
+3. **Redacted Risk Report Feb 2026** — an Anthropic AI risk report (PDF)
+4. **Apple's AI Stumble: Intelligence Delays and Strategic Challenges** — tech-business analysis (markdown)
+5. **Google's Multi-Front AI Strategy: Competing with Gemini While Investing in Rivals** — tech-business analysis (markdown)
+
+The agent — built on Pydantic AI with Groq Llama-3.3-70b as the primary model — routes each incoming question to the appropriate tool based on the question type, then synthesises a cited response from the retrieved context. The backend uses PostgreSQL with pgvector for chunk and page-level embeddings, Neo4j with Graphiti for temporal entity-relationship extraction, and FastAPI for streaming and non-streaming HTTP endpoints. Ingestion is split into two decoupled pipelines: a fast embedding-only run that completes in minutes, and an overnight graph-building run that safely tracks progress across restarts.
 
 ---
 
