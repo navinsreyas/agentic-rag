@@ -497,3 +497,25 @@ async def test_graph_connection() -> bool:
     except Exception as e:
         logger.error(f"Graph connection test failed: {e}")
         return False
+
+
+async def test_graph_connection_fast() -> bool:
+    """
+    Lightweight Neo4j connectivity check for health probes.
+
+    Runs a trivial ``RETURN 1`` against the already-initialized Graphiti driver on
+    the configured database. Unlike test_graph_connection() it does NOT embed or
+    run a Graphiti search, so it is cheap and makes no LLM/embedding API calls.
+    Returns False if the graph client isn't initialized or the query fails.
+    """
+    try:
+        if not graph_client._initialized or graph_client.graphiti is None:
+            return False
+        database = graph_client.graphiti.database
+        async with graph_client.graphiti.driver.session(database=database) as session:
+            result = await session.run("RETURN 1 AS ok")
+            await result.single()
+        return True
+    except Exception as e:
+        logger.error(f"Graph connectivity check failed: {e}")
+        return False

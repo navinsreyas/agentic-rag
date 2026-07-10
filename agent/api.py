@@ -29,7 +29,7 @@ from .db_utils import (
     get_session_messages,
     test_connection
 )
-from .graph_utils import initialize_graph, close_graph, test_graph_connection
+from .graph_utils import initialize_graph, close_graph, test_graph_connection, test_graph_connection_fast
 from .models import (
     ChatRequest,
     ChatResponse,
@@ -59,7 +59,9 @@ logger = logging.getLogger(__name__)
 # Application configuration
 APP_ENV = os.getenv("APP_ENV", "development")
 APP_HOST = os.getenv("APP_HOST", "0.0.0.0")
-APP_PORT = int(os.getenv("APP_PORT", 8058))
+# Cloud Run (and most PaaS) inject their own PORT env var at runtime and expect
+# the server to bind it. Prefer PORT; fall back to APP_PORT for local dev, then 8058.
+APP_PORT = int(os.getenv("PORT") or os.getenv("APP_PORT") or 8058)
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 
 # Configure logging
@@ -366,34 +368,32 @@ async def execute_agent(
 
 
 # API Endpoints
-@app.get("/health", response_model=HealthStatus)
+@app.get("/health")
 async def health_check():
-    """Health check endpoint."""
-    try:
-        # Test database connections
-        db_status = await test_connection()
-        graph_status = await test_graph_connection()
-        
-        # Determine overall status
-        if db_status and graph_status:
-            status = "healthy"
-        elif db_status or graph_status:
-            status = "degraded"
-        else:
-            status = "unhealthy"
-        
-        return HealthStatus(
-            status=status,
-            database=db_status,
-            graph_database=graph_status,
-            llm_connection=True,  # Assume OK if we can respond
-            version="0.1.0",
-            timestamp=datetime.now()
-        )
-        
-    except Exception as e:
-        logger.error(f"Health check failed: {e}")
-        raise HTTPException(status_code=500, detail="Health check failed")
+    """Health check: probes Postgres and Neo4j independently, each with a short
+    timeout, so one slow/dead DB can't hang the endpoint."""
+
+    async def _check(coro) -> bool:
+        try:
+            return bool(await asyncio.wait_for(coro, timeout=3.0))
+        except Exception:
+            return False
+
+    # Run both probes concurrently so total latency stays ~3s, not ~6s.
+    pg_ok, neo_ok = await asyncio.gather(
+        _check(test_connection()),
+        _check(test_graph_connection_fast()),
+    )
+
+    # Always return HTTP 200, even when degraded: Postgres (Neon) and Neo4j (Aura)
+    # are EXTERNAL managed services, so restarting this container can't fix a DB
+    # blip — a 503 -> Cloud Run restart loop would be pure downside. Report the
+    # degraded state in the body for observability instead.
+    return {
+        "status": "ok" if (pg_ok and neo_ok) else "degraded",
+        "postgres": "up" if pg_ok else "down",
+        "neo4j": "up" if neo_ok else "down",
+    }
 
 
 @app.post("/chat", response_model=ChatResponse)
