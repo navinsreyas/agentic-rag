@@ -1,0 +1,38 @@
+# Secrets — never bake these into the image (Cloud Run injects env vars at runtime)
+.env
+.env.*
+!.env.example
+
+# Version control / CI
+.git
+.gitignore
+.github
+
+# Virtualenvs
+venv/
+venv_*/
+.venv/
+
+# Python caches / build artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local data / corpora / generated artifacts (not needed at runtime)
+documents/
+big_tech_docs/
+pageindex_trees/
+graph_progress.json
+page_index.json
+
+# Personal / dev-only
+for_me.md
+CLAUDE.md
+test_pageindex_response.py
+
+# Docker
+Dockerfile
+.dockerignore
