@@ -10,16 +10,26 @@ from datetime import datetime, timezone
 from contextlib import asynccontextmanager
 import asyncio
 
+from dotenv import load_dotenv
+
+# Load environment variables BEFORE importing graphiti_core.
+# Graphiti 0.12.x routes EVERY query to helpers.DEFAULT_DATABASE, a module-level
+# constant = os.getenv('DEFAULT_DATABASE', 'neo4j') evaluated at import time —
+# NOT the Graphiti(...).database attribute. Some Neo4j Aura instances name their
+# single database after the instance id rather than 'neo4j', so map our
+# NEO4J_DATABASE setting onto DEFAULT_DATABASE before the graphiti_core import,
+# otherwise every query targets a non-existent 'neo4j' database.
+load_dotenv()
+_neo4j_db = os.getenv("NEO4J_DATABASE")
+if _neo4j_db:
+    os.environ["DEFAULT_DATABASE"] = _neo4j_db
+
 from graphiti_core import Graphiti
 from graphiti_core.utils.maintenance.graph_data_operations import clear_data
 from graphiti_core.llm_client.config import LLMConfig
 from graphiti_core.llm_client.openai_client import OpenAIClient
 from graphiti_core.embedder.openai import OpenAIEmbedder, OpenAIEmbedderConfig
 from graphiti_core.cross_encoder.openai_reranker_client import OpenAIRerankerClient
-from dotenv import load_dotenv
-
-# Load environment variables
-load_dotenv()
 
 logger = logging.getLogger(__name__)
 
