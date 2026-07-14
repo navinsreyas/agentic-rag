@@ -297,6 +297,18 @@ Rather than switching entirely to a paid provider, the system registers a fallba
 
 ---
 
+## Security & Guardrails
+
+This is a public demo, so a few basic protections are in place. They are deliberately lightweight — enough to prevent casual abuse and runaway API cost, not a substitute for a hardened production gateway.
+
+- **Per-IP rate limiting.** The public endpoints (`/chat`, `/chat/stream`, `/search/vector`, `/search/graph`, `/search/hybrid`, `/documents`) are limited to **20 requests/hour/IP** (configurable via `RATE_LIMIT_REQUESTS` / `RATE_LIMIT_WINDOW_SECONDS`). Exceeding the limit returns **HTTP 429** with a `Retry-After` header. `/health` is intentionally exempt so Cloud Run's health probe is never throttled. The limiter is **in-memory and per-process** — it resets on restart and is not shared across multiple Cloud Run instances; for a strict global limit, back it with Redis or enforce it at an API gateway.
+- **Input validation.** `/chat` and `/search/*` reject empty/whitespace-only queries and queries longer than **500 characters** (`MAX_QUERY_LENGTH`) with **HTTP 400**, *before* any LLM or database work. Malformed bodies (e.g. a non-string `message`) are rejected by Pydantic with **HTTP 422**.
+- **Injection-resistant context handling.** Retrieved document content (vector, hybrid, graph, and page results) is **never concatenated into the system prompt or any instruction string**. The system prompt is static ([`agent/prompts.py`](agent/prompts.py)); retrieved text is returned from tools as tool-result **data**, which the model consumes as context. So a malicious instruction embedded in a source document cannot be *elevated* to a system-level instruction. This does **not** make the model immune to being influenced by that data — no LLM is — but it keeps document text in the data plane, not the instruction plane.
+
+**Not implemented** (stated honestly): endpoint authentication / API keys, output moderation or PII filtering, and a shared cross-instance rate limit. Add these before using this beyond a demo.
+
+---
+
 ## Known Limitations
 
 1. **Knowledge graph coverage is partial.** The graph is populated (294 episodes, 1,241 entities, 1,610 relationship facts), but `ingest_graph.py` has not processed every chunk in `chunks`, so graph tools (`graph_search`, `get_entity_relationships`, `get_entity_timeline`) may return sparse results for topics whose chunks were not yet graph-enriched.

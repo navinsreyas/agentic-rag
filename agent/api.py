@@ -3,9 +3,12 @@ FastAPI endpoints for the agentic RAG system.
 """
 
 import os
+import time
 import asyncio
 import json
 import logging
+from collections import defaultdict, deque
+from threading import Lock
 from contextlib import asynccontextmanager
 from typing import Dict, Any, List, Optional
 from datetime import datetime
@@ -73,6 +76,76 @@ logging.basicConfig(
 # Set debug level for our module during development
 if APP_ENV == "development":
     logger.setLevel(logging.DEBUG)
+
+
+# ---------------------------------------------------------------------------
+# Phase 3 guardrails: per-IP rate limiting + input validation
+# ---------------------------------------------------------------------------
+# All tunable via env; defaults chosen for a low-traffic public demo.
+MAX_QUERY_LENGTH = int(os.getenv("MAX_QUERY_LENGTH", "500"))
+RATE_LIMIT_REQUESTS = int(os.getenv("RATE_LIMIT_REQUESTS", "20"))
+RATE_LIMIT_WINDOW_SECONDS = int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "3600"))
+
+# In-memory per-IP request log. Adequate for a single/low-instance demo, but note
+# it is PER-PROCESS: it resets on restart and is NOT shared across multiple Cloud
+# Run instances (each instance enforces the limit independently). For a strict
+# global limit, back this with Redis or enforce it at an API gateway.
+_rate_lock = Lock()
+_rate_buckets: Dict[str, deque] = defaultdict(deque)
+
+
+def _client_ip(request: Request) -> str:
+    """Best-effort client IP. Cloud Run / proxies put the real client IP first
+    in the X-Forwarded-For header; fall back to the socket peer."""
+    xff = request.headers.get("x-forwarded-for")
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
+async def rate_limit(request: Request) -> None:
+    """FastAPI dependency: fixed-window per-IP limiter. Raises HTTP 429 (with a
+    Retry-After header) once an IP exceeds RATE_LIMIT_REQUESTS in the window."""
+    ip = _client_ip(request)
+    now = time.time()
+    cutoff = now - RATE_LIMIT_WINDOW_SECONDS
+    with _rate_lock:
+        bucket = _rate_buckets[ip]
+        while bucket and bucket[0] < cutoff:
+            bucket.popleft()
+        if len(bucket) >= RATE_LIMIT_REQUESTS:
+            retry_after = int(bucket[0] + RATE_LIMIT_WINDOW_SECONDS - now) + 1
+            raise HTTPException(
+                status_code=429,
+                detail=(
+                    f"Rate limit exceeded: max {RATE_LIMIT_REQUESTS} requests per "
+                    f"{RATE_LIMIT_WINDOW_SECONDS // 60} minutes per IP. "
+                    f"Try again in ~{retry_after}s."
+                ),
+                headers={"Retry-After": str(retry_after)},
+            )
+        bucket.append(now)
+
+
+def validate_query(text: Any, field: str = "query") -> str:
+    """Validate a user query: must be a non-empty, non-whitespace string within
+    MAX_QUERY_LENGTH. Raises HTTP 400 on failure — before any LLM/DB work."""
+    if not isinstance(text, str):
+        raise HTTPException(status_code=400, detail=f"'{field}' must be a string.")
+    if not text.strip():
+        raise HTTPException(
+            status_code=400,
+            detail=f"'{field}' must not be empty or whitespace-only.",
+        )
+    if len(text) > MAX_QUERY_LENGTH:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"'{field}' exceeds the maximum length of {MAX_QUERY_LENGTH} "
+                f"characters (got {len(text)})."
+            ),
+        )
+    return text.strip()
 
 
 @asynccontextmanager
@@ -396,9 +469,12 @@ async def health_check():
     }
 
 
-@app.post("/chat", response_model=ChatResponse)
+@app.post("/chat", response_model=ChatResponse, dependencies=[Depends(rate_limit)])
 async def chat(request: ChatRequest):
     """Non-streaming chat endpoint."""
+    # Validate input before any LLM/DB work. Kept OUTSIDE the try/except below so
+    # the 400 isn't caught and reclassified as a 500.
+    validate_query(request.message, "message")
     try:
         # Get or create session
         session_id = await get_or_create_session(request)
@@ -421,9 +497,11 @@ async def chat(request: ChatRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/chat/stream")
+@app.post("/chat/stream", dependencies=[Depends(rate_limit)])
 async def chat_stream(request: ChatRequest):
     """Streaming chat endpoint using Server-Sent Events."""
+    # Validate input before any LLM/DB work (raises 400, outside the try below).
+    validate_query(request.message, "message")
     try:
         # Get or create session
         session_id = await get_or_create_session(request)
@@ -562,9 +640,10 @@ async def chat_stream(request: ChatRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/search/vector")
+@app.post("/search/vector", dependencies=[Depends(rate_limit)])
 async def search_vector(request: SearchRequest):
     """Vector search endpoint."""
+    validate_query(request.query, "query")
     try:
         input_data = VectorSearchInput(
             query=request.query,
@@ -589,9 +668,10 @@ async def search_vector(request: SearchRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/search/graph")
+@app.post("/search/graph", dependencies=[Depends(rate_limit)])
 async def search_graph(request: SearchRequest):
     """Knowledge graph search endpoint."""
+    validate_query(request.query, "query")
     try:
         input_data = GraphSearchInput(
             query=request.query
@@ -615,9 +695,10 @@ async def search_graph(request: SearchRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/search/hybrid")
+@app.post("/search/hybrid", dependencies=[Depends(rate_limit)])
 async def search_hybrid(request: SearchRequest):
     """Hybrid search endpoint."""
+    validate_query(request.query, "query")
     try:
         input_data = HybridSearchInput(
             query=request.query,
@@ -642,7 +723,7 @@ async def search_hybrid(request: SearchRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/documents")
+@app.get("/documents", dependencies=[Depends(rate_limit)])
 async def list_documents_endpoint(
     limit: int = 20,
     offset: int = 0
