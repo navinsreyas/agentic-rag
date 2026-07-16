@@ -4,7 +4,6 @@ Pydantic models for data validation and serialization.
 
 from typing import List, Dict, Any, Optional, Literal
 from datetime import datetime
-from uuid import UUID
 from pydantic import BaseModel, Field, ConfigDict, field_validator
 from enum import Enum
 

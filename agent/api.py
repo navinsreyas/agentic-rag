@@ -38,9 +38,8 @@ from .models import (
     ChatResponse,
     SearchRequest,
     SearchResponse,
-    StreamDelta,
+    SearchType,
     ErrorResponse,
-    HealthStatus,
     ToolCall
 )
 from .tools import (
@@ -301,7 +300,7 @@ def extract_tool_calls(result) -> List[ToolCall]:
                                 try:
                                     tool_args = part.args_as_dict()
                                     logger.debug(f"Got args from args_as_dict(): {tool_args}")
-                                except:
+                                except Exception:
                                     pass
                             
                             # Get tool call ID
@@ -316,7 +315,11 @@ def extract_tool_calls(result) -> List[ToolCall]:
                                 "tool_call_id": tool_call_id
                             }
                             logger.debug(f"Creating ToolCall with data: {tool_call_data}")
-                            tools_used.append(ToolCall(**tool_call_data))
+                            tools_used.append(ToolCall(
+                                tool_name=tool_name,
+                                args=tool_args,
+                                tool_call_id=tool_call_id,
+                            ))
                         except Exception as e:
                             logger.debug(f"Failed to parse tool call part: {e}")
                             continue
@@ -659,7 +662,7 @@ async def search_vector(request: SearchRequest):
         return SearchResponse(
             results=results,
             total_results=len(results),
-            search_type="vector",
+            search_type=SearchType.VECTOR,
             query_time_ms=query_time
         )
         
@@ -686,7 +689,7 @@ async def search_graph(request: SearchRequest):
         return SearchResponse(
             graph_results=results,
             total_results=len(results),
-            search_type="graph",
+            search_type=SearchType.GRAPH,
             query_time_ms=query_time
         )
         
@@ -714,7 +717,7 @@ async def search_hybrid(request: SearchRequest):
         return SearchResponse(
             results=results,
             total_results=len(results),
-            search_type="hybrid",
+            search_type=SearchType.HYBRID,
             query_time_ms=query_time
         )
         

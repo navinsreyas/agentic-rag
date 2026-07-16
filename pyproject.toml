@@ -1,0 +1,34 @@
+# Tooling config only — this project is run from source (requirements.txt),
+# not installed as a package, so there is no [build-system]/[project] table.
+
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+exclude = [
+    "venv",
+    ".venv",
+    "__pycache__",
+    # Local throwaway probe script for the PageIndex API; not part of the package
+    # and not tracked in git.
+    "test_pageindex_response.py",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# E402 = "module level import not at top of file".
+# In these modules the late imports are load-bearing, not sloppiness — moving them
+# to the top would break the program, so the rule is silenced per-file (with the
+# reason recorded here) rather than with scattered inline noqa comments:
+#
+#   agent/graph_utils.py        maps NEO4J_DATABASE -> DEFAULT_DATABASE *before*
+#                               importing graphiti_core, which reads that env var
+#                               into a module-level constant at import time.
+#   scripts/*.py                insert the project root onto sys.path before
+#   ingestion/ingest_pageindex.py  importing the first-party `agent.*` packages.
+"agent/graph_utils.py" = ["E402"]
+"scripts/ingest_fast.py" = ["E402"]
+"scripts/ingest_graph.py" = ["E402"]
+"ingestion/ingest_pageindex.py" = ["E402"]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true

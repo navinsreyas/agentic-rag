@@ -4,12 +4,11 @@ Knowledge graph builder for extracting entities and relationships.
 
 import os
 import logging
-from typing import List, Dict, Any, Optional, Set, Tuple
+from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone
 import asyncio
 import re
 
-from graphiti_core import Graphiti
 from dotenv import load_dotenv
 
 from .chunker import DocumentChunk
@@ -231,7 +230,7 @@ class GraphBuilder:
         enriched_chunks = []
         
         for chunk in chunks:
-            entities = {
+            entities: Dict[str, List[str]] = {
                 "companies": [],
                 "technologies": [],
                 "people": [],

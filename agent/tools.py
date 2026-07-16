@@ -350,14 +350,14 @@ async def perform_comprehensive_search(
     Returns:
         Combined search results
     """
-    results = {
+    results: Dict[str, Any] = {
         "query": query,
         "vector_results": [],
         "graph_results": [],
         "total_results": 0
     }
-    
-    tasks = []
+
+    tasks: List[Any] = []
     
     if use_vector:
         tasks.append(vector_search_tool(VectorSearchInput(query=query, limit=limit)))
@@ -526,7 +526,7 @@ async def pageindex_search_tool(input_data: PageIndexSearchInput) -> str:
         )
 
     try:
-        from pageindex import PageIndexClient, PageIndexAPIError
+        from pageindex import PageIndexClient
     except ImportError:
         return "PageIndex library not installed. Run: pip install pageindex"
 

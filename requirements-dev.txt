@@ -1,0 +1,4 @@
+# Dev/CI-only tooling. Not installed into the runtime image (see Dockerfile,
+# which installs requirements.txt only). Pinned so local runs and CI agree.
+ruff==0.15.21
+mypy==2.3.0

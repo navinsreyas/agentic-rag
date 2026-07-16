@@ -28,9 +28,9 @@ def _is_groq(model_choice: Optional[str] = None) -> bool:
     base_url = os.getenv('LLM_BASE_URL', '')
     if 'groq.com' in base_url:
         return True
-    choice = model_choice or os.getenv('LLM_CHOICE', '')
-    # Groq-hosted model names contain 'llama', 'mixtral', 'gemma' via groq
-    # but only flag them when the base URL is also Groq
+    # Deliberately NOT inferring from the model name: names like 'llama' /
+    # 'mixtral' / 'gemma' are also served by non-Groq providers, so only an
+    # explicit LLM_PROVIDER=groq or a groq.com base URL counts.
     return False
 
 
@@ -44,16 +44,18 @@ def get_llm_model(model_choice: Optional[str] = None) -> Union[OpenAIModel, "Gro
     Returns:
         Configured model (GroqModel when LLM_PROVIDER=groq, OpenAIModel otherwise)
     """
-    llm_choice = model_choice or os.getenv('LLM_CHOICE', 'gpt-4-turbo-preview')
+    # Chained `or` (rather than os.getenv's default arg) so the result is a plain
+    # str: it also treats an empty LLM_CHOICE as unset, which is what we want.
+    llm_choice: str = model_choice or os.getenv('LLM_CHOICE') or 'gpt-4-turbo-preview'
     base_url = os.getenv('LLM_BASE_URL', 'https://api.openai.com/v1')
     api_key = os.getenv('LLM_API_KEY', 'ollama')
 
     if _is_groq(model_choice) and _GROQ_AVAILABLE:
-        provider = GroqProvider(api_key=api_key)
-        return GroqModel(llm_choice, provider=provider)
+        groq_provider = GroqProvider(api_key=api_key)
+        return GroqModel(llm_choice, provider=groq_provider)
 
-    provider = OpenAIProvider(base_url=base_url, api_key=api_key)
-    return OpenAIModel(llm_choice, provider=provider)
+    openai_provider = OpenAIProvider(base_url=base_url, api_key=api_key)
+    return OpenAIModel(llm_choice, provider=openai_provider)
 
 
 def get_embedding_client() -> openai.AsyncOpenAI:
@@ -82,7 +84,7 @@ def get_embedding_model() -> str:
     return os.getenv('EMBEDDING_MODEL', 'text-embedding-3-small')
 
 
-def get_ingestion_model() -> OpenAIModel:
+def get_ingestion_model() -> Union[OpenAIModel, "GroqModel"]:
     """
     Get ingestion-specific LLM model (can be faster/cheaper than main model).
 

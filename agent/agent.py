@@ -2,7 +2,6 @@
 Main Pydantic AI agent for agentic RAG with knowledge graph.
 """
 
-import os
 import logging
 from typing import Dict, Any, List, Optional
 from dataclasses import dataclass, field
@@ -43,7 +42,7 @@ class AgentDependencies:
     """Dependencies for the agent."""
     session_id: str
     user_id: Optional[str] = None
-    search_preferences: Dict[str, Any] = None
+    search_preferences: Optional[Dict[str, Any]] = None
     # Per-run tool call tracking — both fields are reset to empty/zero on
     # every agent.run() call because AgentDependencies is instantiated fresh
     # each time.  Every @rag_agent.tool function receives ctx.deps pointing

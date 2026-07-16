@@ -3,12 +3,9 @@ Graph utilities for Neo4j/Graphiti integration.
 """
 
 import os
-import json
 import logging
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone
-from contextlib import asynccontextmanager
-import asyncio
 
 from dotenv import load_dotenv
 
@@ -160,6 +157,20 @@ class GraphitiClient:
             self.graphiti = None
             self._initialized = False
             logger.info("Graphiti client closed")
+
+    def _require_graphiti(self) -> Graphiti:
+        """
+        Return the initialized Graphiti client, raising if initialize() hasn't run.
+
+        `self.graphiti` is Optional until initialize() constructs it. Routing every
+        use through this helper makes the precondition explicit — a clear
+        RuntimeError instead of an AttributeError on None later.
+        """
+        if self.graphiti is None:
+            raise RuntimeError(
+                "Graphiti client is not initialized; call initialize() first"
+            )
+        return self.graphiti
     
     async def add_episode(
         self,
@@ -187,7 +198,7 @@ class GraphitiClient:
         # Import EpisodeType for proper source handling
         from graphiti_core.nodes import EpisodeType
         
-        await self.graphiti.add_episode(
+        await self._require_graphiti().add_episode(
             name=episode_id,
             episode_body=content,
             source=EpisodeType.text,  # Always use text type for our content
@@ -219,7 +230,7 @@ class GraphitiClient:
         
         try:
             # Use Graphiti's search method (simplified parameters)
-            results = await self.graphiti.search(query)
+            results = await self._require_graphiti().search(query)
             
             # Convert results to dictionaries
             return [
@@ -258,7 +269,7 @@ class GraphitiClient:
             await self.initialize()
         
         # Use Graphiti search to find related information about the entity
-        results = await self.graphiti.search(f"relationships involving {entity_name}")
+        results = await self._require_graphiti().search(f"relationships involving {entity_name}")
         
         # Extract entity information from the search results
         related_entities = set()
@@ -308,7 +319,7 @@ class GraphitiClient:
             await self.initialize()
 
         # Search for temporal information about the entity
-        results = await self.graphiti.search(f"timeline history of {entity_name}")
+        results = await self._require_graphiti().search(f"timeline history of {entity_name}")
 
         timeline = []
         for result in results:
@@ -347,7 +358,7 @@ class GraphitiClient:
         # For now, return a simple search to verify the graph is working
         # More detailed statistics would require direct Neo4j access
         try:
-            test_results = await self.graphiti.search("test")
+            test_results = await self._require_graphiti().search("test")
             return {
                 "graphiti_initialized": True,
                 "sample_search_results": len(test_results),

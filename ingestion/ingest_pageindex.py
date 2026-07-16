@@ -275,7 +275,7 @@ async def run_ingestion(
         label = f"[{i+1}/{len(to_upload)}]"
         name  = os.path.basename(fp)
         print(f"{label} {name}")
-        print(f"  Uploading ...", end="", flush=True)
+        print("  Uploading ...", end="", flush=True)
 
         doc_id = await _upload_and_wait(client, fp)
 
@@ -290,7 +290,7 @@ async def run_ingestion(
             print(f" done  → doc_id: {doc_id}")
             successes.append(name)
         else:
-            print(f" FAILED  (see logs above for details)")
+            print(" FAILED  (see logs above for details)")
             failures.append(name)
 
     # --- Summary ----------------------------------------------------------

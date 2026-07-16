@@ -3,7 +3,6 @@ Tests for database utilities.
 """
 
 import pytest
-import asyncio
 import json
 from unittest.mock import Mock, AsyncMock, patch
 from datetime import datetime, timezone, timedelta

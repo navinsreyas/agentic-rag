@@ -30,11 +30,13 @@ import argparse
 # On Windows the default console code page (cp1252) cannot encode the Unicode
 # glyphs this script prints (→, ✓, ✗), which otherwise crashes with
 # UnicodeEncodeError. Force UTF-8 output where supported.
-try:
-    sys.stdout.reconfigure(encoding="utf-8")
-    sys.stderr.reconfigure(encoding="utf-8")
-except Exception:
-    pass
+for _stream in (sys.stdout, sys.stderr):
+    _reconfigure = getattr(_stream, "reconfigure", None)
+    if _reconfigure is not None:
+        try:
+            _reconfigure(encoding="utf-8")
+        except Exception:
+            pass
 
 # ---------------------------------------------------------------------------
 # Path setup — add project root to sys.path

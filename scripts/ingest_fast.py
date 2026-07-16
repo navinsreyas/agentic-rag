@@ -37,11 +37,13 @@ import argparse
 # On Windows the default console code page (cp1252) cannot encode the Unicode
 # glyphs this script prints (→, ✓, ✗), which otherwise crashes with
 # UnicodeEncodeError. Force UTF-8 output where supported.
-try:
-    sys.stdout.reconfigure(encoding="utf-8")
-    sys.stderr.reconfigure(encoding="utf-8")
-except Exception:
-    pass
+for _stream in (sys.stdout, sys.stderr):
+    _reconfigure = getattr(_stream, "reconfigure", None)
+    if _reconfigure is not None:
+        try:
+            _reconfigure(encoding="utf-8")
+        except Exception:
+            pass
 
 # ---------------------------------------------------------------------------
 # Path setup — add project root to sys.path
@@ -281,7 +283,7 @@ def print_pages_cost_estimate(est: Dict[str, Any]) -> None:
     print("=" * 60)
     print(f"  Model   : {est['model']}")
     print(f"  Price   : ${est['price_per_million']:.3f} per 1M tokens")
-    print(f"  Mode    : page embeddings only -- no chunk re-embedding")
+    print("  Mode    : page embeddings only -- no chunk re-embedding")
     print()
     print(f"  {'PDF file':<38} {'Pages':>5}  {'~Tokens':>8}")
     print(f"  {'-'*38} {'-'*5}  {'-'*8}")
@@ -371,7 +373,7 @@ class FastIngestionPipeline:
                     result = await self._ingest_markdown(fp)
                 results.append(result)
                 if result.get("skipped"):
-                    print(f"  → already in DB, skipped")
+                    print("  → already in DB, skipped")
                 elif result.get("error"):
                     print(f"  → ERROR: {result['error']}")
                 else:
@@ -405,8 +407,9 @@ class FastIngestionPipeline:
             with open(file_path, "rb") as fh:
                 reader = PyPDF2.PdfReader(fh)
                 info = reader.metadata
-                if info and getattr(info, "title", None) and info.title.strip():
-                    return info.title.strip()
+                pdf_title = getattr(info, "title", None) if info else None
+                if pdf_title and pdf_title.strip():
+                    return pdf_title.strip()
         except Exception:
             pass
         for line in first_page_text.split("\n")[:10]:

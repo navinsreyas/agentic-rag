@@ -5,9 +5,8 @@ Semantic chunking implementation for intelligent document splitting.
 import os
 import re
 import logging
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
-import asyncio
 
 from dotenv import load_dotenv
 
@@ -58,6 +57,9 @@ class DocumentChunk:
     end_char: int
     metadata: Dict[str, Any]
     token_count: Optional[int] = None
+    # Populated later by ingestion.embedder.embed_chunks(); declared here because
+    # the embedder and graph_builder both read chunk.embedding at runtime.
+    embedding: Optional[List[float]] = None
     
     def __post_init__(self):
         """Calculate token count if not provided."""

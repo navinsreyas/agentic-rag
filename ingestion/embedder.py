@@ -5,9 +5,8 @@ Document embedding generation for vector search.
 import os
 import asyncio
 import logging
-from typing import List, Dict, Any, Optional, Tuple
+from typing import Any, Callable, List, Dict, Optional
 from datetime import datetime
-import json
 
 from openai import RateLimitError, APIError
 from dotenv import load_dotenv
@@ -96,7 +95,7 @@ class EmbeddingGenerator:
                 
                 return response.data[0].embedding
                 
-            except RateLimitError as e:
+            except RateLimitError:
                 if attempt == self.max_retries - 1:
                     raise
                 
@@ -116,7 +115,14 @@ class EmbeddingGenerator:
                 if attempt == self.max_retries - 1:
                     raise
                 await asyncio.sleep(self.retry_delay)
-    
+
+        # Only reachable if max_retries < 1 (the loop body always returns or
+        # re-raises on the final attempt). Fail loudly rather than implicitly
+        # returning None, which would violate the -> List[float] contract.
+        raise RuntimeError(
+            f"generate_embedding made no attempts (max_retries={self.max_retries})"
+        )
+
     async def generate_embeddings_batch(
         self,
         texts: List[str]
@@ -152,7 +158,7 @@ class EmbeddingGenerator:
                 
                 return [data.embedding for data in response.data]
                 
-            except RateLimitError as e:
+            except RateLimitError:
                 if attempt == self.max_retries - 1:
                     raise
                 
@@ -172,7 +178,11 @@ class EmbeddingGenerator:
                 if attempt == self.max_retries - 1:
                     return await self._process_individually(processed_texts)
                 await asyncio.sleep(self.retry_delay)
-    
+
+        # Only reachable if max_retries < 1; fall back to the per-text path rather
+        # than implicitly returning None.
+        return await self._process_individually(processed_texts)
+
     async def _process_individually(
         self,
         texts: List[str]
@@ -210,7 +220,7 @@ class EmbeddingGenerator:
     async def embed_chunks(
         self,
         chunks: List[DocumentChunk],
-        progress_callback: Optional[callable] = None
+        progress_callback: Optional[Callable[..., Any]] = None
     ) -> List[DocumentChunk]:
         """
         Generate embeddings for document chunks.
@@ -368,6 +378,8 @@ def create_embedder(
             cache.put(text, embedding)
             return embedding
         
-        embedder.generate_embedding = cached_generate
-    
+        # setattr (rather than direct assignment) because we are intentionally
+        # shadowing the bound method on this instance with a caching wrapper.
+        setattr(embedder, "generate_embedding", cached_generate)
+
     return embedder

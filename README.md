@@ -1,5 +1,11 @@
 # Agentic RAG with Knowledge Graph and Semantic PageIndex
 
+<!-- Replace OWNER/REPO below with your GitHub owner/repo once the remote exists,
+     otherwise these badges will render as "invalid". -->
+[![Lint](https://github.com/OWNER/REPO/actions/workflows/lint.yml/badge.svg)](https://github.com/OWNER/REPO/actions/workflows/lint.yml)
+![Ruff](https://img.shields.io/badge/lint-ruff-D7FF64?logo=ruff&logoColor=black)
+![MyPy](https://img.shields.io/badge/types-mypy-2A6DB2?logo=python&logoColor=white)
+
 ![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-pgvector-4169E1?logo=postgresql&logoColor=white)
 ![Neo4j](https://img.shields.io/badge/Neo4j-5.x-008CC1?logo=neo4j&logoColor=white)

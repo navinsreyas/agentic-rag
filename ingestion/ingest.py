@@ -6,7 +6,7 @@ import os
 import logging
 import json
 import glob
-from typing import List, Dict, Any, Optional, Tuple
+from typing import Callable, List, Dict, Any, Optional, Tuple
 from datetime import datetime
 
 try:
@@ -19,7 +19,6 @@ except ImportError:
         "Install it with: pip install PyPDF2"
     )
 
-import asyncpg
 from dotenv import load_dotenv
 
 from .chunker import ChunkingConfig, create_chunker, DocumentChunk
@@ -106,7 +105,7 @@ class DocumentIngestionPipeline:
     
     async def ingest_documents(
         self,
-        progress_callback: Optional[callable] = None
+        progress_callback: Optional[Callable[..., Any]] = None
     ) -> List[IngestionResult]:
         """
         Ingest all documents (markdown and PDF) from the documents folder.
