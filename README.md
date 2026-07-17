@@ -383,6 +383,36 @@ pytest tests/ingestion/
 
 ---
 
+## MCP Server (Claude Desktop / MCP clients)
+
+`mcp_server.py` exposes three retrieval tools over the [Model Context Protocol](https://modelcontextprotocol.io) using **FastMCP**: `vector_search`, `hybrid_search`, and `graph_search`. It is a thin wrapper — it imports and calls the **same** implementations in `agent/tools.py` that the FastAPI app uses, against the same databases (Neon + Neo4j Aura via `.env`). No retrieval logic is duplicated.
+
+Run it standalone (stdio transport):
+
+```bash
+python mcp_server.py
+```
+
+To use it from **Claude Desktop**, add this to `claude_desktop_config.json` (Windows: `%APPDATA%\Claude\claude_desktop_config.json`), then fully quit and reopen Claude Desktop:
+
+```json
+{
+  "mcpServers": {
+    "agentic-rag": {
+      "command": "C:\\Users\\sreya\\anaconda3\\envs\\rag\\python.exe",
+      "args": ["C:\\Users\\sreya\\OneDrive\\Documents\\Projects\\agentic-rag-knowledge-graph\\mcp_server.py"],
+      "cwd": "C:\\Users\\sreya\\OneDrive\\Documents\\Projects\\agentic-rag-knowledge-graph"
+    }
+  }
+}
+```
+
+Pointing `command` directly at the **`rag` conda env's `python.exe`** activates that environment (its interpreter + site-packages) without a `conda activate` shell step — which is the reliable choice for a stdio MCP server, since `conda run` captures stdout and would corrupt the protocol stream. (If you must use `conda run`, add `--no-capture-output`.) The server loads `.env` by absolute path and adds its own directory to `sys.path`, so it works regardless of the client's working directory.
+
+Once connected, the three tools appear in Claude Desktop's tool list and return live results from the cloud databases.
+
+---
+
 ## API Reference
 
 Interactive Swagger docs are available at `http://localhost:8058/docs` once the server is running.

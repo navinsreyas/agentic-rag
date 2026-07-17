@@ -24,10 +24,14 @@ exclude = [
 #                               into a module-level constant at import time.
 #   scripts/*.py                insert the project root onto sys.path before
 #   ingestion/ingest_pageindex.py  importing the first-party `agent.*` packages.
+#   mcp_server.py               loads .env by absolute path (so agent.graph_utils'
+#                               NEO4J_DATABASE->DEFAULT_DATABASE mapping resolves)
+#                               and sets sys.path before importing agent.*.
 "agent/graph_utils.py" = ["E402"]
 "scripts/ingest_fast.py" = ["E402"]
 "scripts/ingest_graph.py" = ["E402"]
 "ingestion/ingest_pageindex.py" = ["E402"]
+"mcp_server.py" = ["E402"]
 
 [tool.mypy]
 python_version = "3.11"
