@@ -78,6 +78,41 @@ if APP_ENV == "development":
 
 
 # ---------------------------------------------------------------------------
+# Sentry error tracking (optional, guarded) — initialized before the app is
+# created so the ASGI integration wraps request handling from the first request.
+# ---------------------------------------------------------------------------
+def _init_sentry() -> None:
+    """Initialize Sentry only if SENTRY_DSN is set; otherwise skip entirely.
+
+    The app MUST run normally with no DSN (local dev, CI), so a missing/empty
+    DSN is a logged no-op, not an error. Any failure during init is swallowed so
+    telemetry setup can never take the app down.
+    """
+    dsn = os.getenv("SENTRY_DSN")
+    if not dsn:
+        logger.info("Sentry disabled (SENTRY_DSN not set)")
+        return
+    try:
+        import sentry_sdk
+        from sentry_sdk.integrations.starlette import StarletteIntegration
+        from sentry_sdk.integrations.fastapi import FastApiIntegration
+
+        sentry_sdk.init(
+            dsn=dsn,
+            traces_sample_rate=0.1,
+            environment=os.getenv("APP_ENV", "development"),
+            # ASGI/FastAPI integration → unhandled exceptions captured automatically.
+            integrations=[StarletteIntegration(), FastApiIntegration()],
+        )
+        logger.info("Sentry enabled (environment=%s)", os.getenv("APP_ENV", "development"))
+    except Exception as exc:
+        logger.warning(f"Sentry init failed; continuing without it: {exc}")
+
+
+_init_sentry()
+
+
+# ---------------------------------------------------------------------------
 # Phase 3 guardrails: per-IP rate limiting + input validation
 # ---------------------------------------------------------------------------
 # All tunable via env; defaults chosen for a low-traffic public demo.

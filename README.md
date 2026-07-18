@@ -203,7 +203,14 @@ FALLBACK_LLM_PROVIDER=
 FALLBACK_LLM_API_KEY=
 FALLBACK_LLM_CHOICE=
 FALLBACK_LLM_BASE_URL=
+
+# Error tracking (optional). Leave unset to disable — the app runs normally
+# without it (local dev, CI). Set to your Sentry project DSN in production to
+# capture unhandled exceptions (traces sampled at 10%, tagged with APP_ENV).
+SENTRY_DSN=
 ```
+
+> **Sentry (optional):** `agent/api.py` calls `sentry_sdk.init()` at startup **only if `SENTRY_DSN` is set**. When it's unset/empty the app logs `Sentry disabled (SENTRY_DSN not set)` and starts normally, so it's safe to leave blank in dev and CI. When set, it uses Sentry's FastAPI/ASGI integration to capture unhandled exceptions automatically, with `traces_sample_rate=0.1` and `environment=APP_ENV`.
 
 ### 3. Initialise the database schema
 
