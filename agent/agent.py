@@ -6,6 +6,7 @@ import logging
 from typing import Dict, Any, List, Optional
 from dataclasses import dataclass, field
 
+from prometheus_client import Counter
 from pydantic_ai import Agent, RunContext
 from dotenv import load_dotenv
 
@@ -66,6 +67,16 @@ class AgentDependencies:
 
 _MAX_TOOL_CALLS_PER_TURN = 2
 
+# Project-specific metric: how often the agent invokes each tool, labeled by tool
+# name. Registered on prometheus_client's default REGISTRY, which the FastAPI
+# instrumentator's /metrics endpoint exposes. (Generic request/latency metrics
+# are handled separately by the instrumentator.)
+AGENT_TOOL_INVOCATIONS = Counter(
+    "agent_tool_invocations_total",
+    "Number of times the agent invoked each tool.",
+    ["tool_name"],
+)
+
 
 def _check_tool_limits(
     ctx: RunContext[AgentDependencies],
@@ -94,6 +105,10 @@ def _check_tool_limits(
       return type, so the model receives an intelligible message rather than an
       empty list that might prompt it to try again.
     """
+    # Every @rag_agent.tool passes through here first, so this is the one place
+    # to count per-tool invocations. cache_key is always "<tool_name>:<args...>".
+    AGENT_TOOL_INVOCATIONS.labels(tool_name=cache_key.split(":", 1)[0]).inc()
+
     deps = ctx.deps
 
     if deps.tool_call_count >= _MAX_TOOL_CALLS_PER_TURN:

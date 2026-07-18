@@ -19,6 +19,7 @@ from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 import uvicorn
+from prometheus_fastapi_instrumentator import Instrumentator
 from dotenv import load_dotenv
 
 from .agent import rag_agent, AgentDependencies
@@ -243,6 +244,12 @@ app.add_middleware(
 )
 
 app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+# Prometheus: generic request/latency metrics + expose GET /metrics. The custom
+# agent_tool_invocations_total counter (defined in agent/agent.py, registered on
+# the default registry) is included automatically. /metrics has no rate-limit
+# dependency, so scrapers are never throttled.
+Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
 
 
 # Helper functions for agent execution

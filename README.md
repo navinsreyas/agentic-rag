@@ -322,6 +322,24 @@ This is a public demo, so a few basic protections are in place. They are deliber
 
 ---
 
+## Observability
+
+- **Metrics** — the API exposes Prometheus metrics at `GET /metrics` (via `prometheus-fastapi-instrumentator`): standard request/latency series, plus a project-specific counter **`agent_tool_invocations_total{tool_name=...}`**, incremented once per agent tool invocation at the single shared dispatch point (`_check_tool_limits` in `agent/agent.py`). Example output:
+  ```
+  agent_tool_invocations_total{tool_name="vector_search"} 3.0
+  agent_tool_invocations_total{tool_name="graph_search"} 1.0
+  agent_tool_invocations_total{tool_name="get_entity_relationships"} 1.0
+  agent_tool_invocations_total{tool_name="pageindex_search"} 5.0
+  ```
+  `/metrics` is not rate-limited, so scrapers are never throttled.
+- **Error tracking** — Sentry, initialized only when `SENTRY_DSN` is set (see Setup); a no-op otherwise.
+
+### Scraping /metrics from Grafana Cloud (pending live deploy)
+
+Point Grafana Cloud's **"Metrics Endpoint" integration** at the deployed `https://<service-url>/metrics`. Do **not** use the plain **Prometheus data source** — that expects a full Prometheus server with a query API (`/api/v1/query`) and will **404 against a bare `/metrics` exposition endpoint**. This step is pending the live Cloud Run deploy URL.
+
+---
+
 ## Known Limitations
 
 1. **Knowledge graph coverage is partial.** The graph is populated (294 episodes, 1,241 entities, 1,610 relationship facts), but `ingest_graph.py` has not processed every chunk in `chunks`, so graph tools (`graph_search`, `get_entity_relationships`, `get_entity_timeline`) may return sparse results for topics whose chunks were not yet graph-enriched.
