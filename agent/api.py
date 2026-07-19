@@ -15,7 +15,7 @@ from datetime import datetime
 import uuid
 
 from fastapi import FastAPI, HTTPException, Request, Depends
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 import uvicorn
@@ -810,14 +810,20 @@ async def get_session_info(session_id: str):
 # Exception handlers
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    """Global exception handler."""
+    """Global exception handler.
+
+    Must return an actual Response — Starlette calls a handler's return value as
+    an ASGI app, so returning a raw Pydantic model raised a secondary
+    'ErrorResponse object is not callable' TypeError and broke every 500.
+    """
     logger.error(f"Unhandled exception: {exc}")
-    
-    return ErrorResponse(
+
+    body = ErrorResponse(
         error=str(exc),
         error_type=type(exc).__name__,
-        request_id=str(uuid.uuid4())
+        request_id=str(uuid.uuid4()),
     )
+    return JSONResponse(status_code=500, content=body.model_dump())
 
 
 # Development server
