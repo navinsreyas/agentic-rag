@@ -170,6 +170,7 @@ pageindex_trees/
 # Project specific
 *.db
 *.sqlite
+*.dump
 logs/
 temp/
 tmp/
