@@ -1,8 +1,6 @@
 # Agentic RAG with Knowledge Graph and Semantic PageIndex
 
-<!-- Replace OWNER/REPO below with your GitHub owner/repo once the remote exists,
-     otherwise these badges will render as "invalid". -->
-[![Lint](https://github.com/OWNER/REPO/actions/workflows/lint.yml/badge.svg)](https://github.com/OWNER/REPO/actions/workflows/lint.yml)
+[![Lint](https://github.com/navinsreyas/agentic-rag-knowledge-graph/actions/workflows/lint.yml/badge.svg)](https://github.com/navinsreyas/agentic-rag-knowledge-graph/actions/workflows/lint.yml)
 ![Ruff](https://img.shields.io/badge/lint-ruff-D7FF64?logo=ruff&logoColor=black)
 ![MyPy](https://img.shields.io/badge/types-mypy-2A6DB2?logo=python&logoColor=white)
 
