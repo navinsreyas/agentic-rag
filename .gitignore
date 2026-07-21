@@ -204,3 +204,7 @@ secrets/
 *.key
 *.pem
 *.crt
+
+CLAUDE.md
+PLANNING.md
+test_pageindex_response.py
