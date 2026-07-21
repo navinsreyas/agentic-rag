@@ -24,9 +24,15 @@ __pycache__/
 # Local data / corpora / generated artifacts (not needed at runtime)
 documents/
 big_tech_docs/
-pageindex_trees/
 graph_progress.json
 page_index.json
+# NOTE: pageindex_trees/ is intentionally NOT ignored — pageindex_trees/index.json
+# is the PageIndex manifest (cloud doc_ids + paths, no secrets) and must ship in
+# the image so pageindex_search works in production instead of short-circuiting.
+
+# Frontend (separate Vercel deploy — not part of the Python backend image)
+frontend/
+node_modules/
 
 # Personal / dev-only
 for_me.md

@@ -1,0 +1,42 @@
+# Controls what `gcloud run deploy --source .` uploads to Cloud Build.
+# IMPORTANT: this file exists specifically so gcloud does NOT fall back to
+# .gitignore (which excludes pageindex_trees/). We WANT pageindex_trees/index.json
+# uploaded — it is the PageIndex doc_id manifest (no secrets) that pageindex_search
+# needs at runtime. Everything genuinely secret or unneeded is excluded below.
+
+# Secrets — never upload
+.env
+.env.*
+!.env.example
+
+# Version control / CI
+.git/
+.github/
+
+# Python environments and caches
+venv/
+venv_*/
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Frontend (separate Vercel deploy — not part of the backend image/build)
+frontend/
+node_modules/
+
+# Local data / corpora not needed to build or run the API
+documents/
+big_tech_docs/
+graph_progress.json
+page_index.json
+
+# Personal / dev-only
+for_me.md
+CLAUDE.md
+test_pageindex_response.py
+
+# NOTE: pageindex_trees/ is intentionally NOT listed here, so index.json is uploaded.
