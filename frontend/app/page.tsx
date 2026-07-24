@@ -171,9 +171,10 @@ export default function Home() {
         style={{
           minHeight: 80,
           padding: "1rem",
-          border: "1px solid #e5e7eb",
+          border: "1px solid #333",
           borderRadius: 8,
-          background: "#fafafa",
+          background: "#1a1a1a",
+          color: "#eee",
           whiteSpace: "pre-wrap",
           wordBreak: "break-word",
         }}

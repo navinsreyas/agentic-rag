@@ -23,7 +23,6 @@ except ImportError:
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from agent.providers import get_embedding_client, get_embedding_model
 
-# Load environment variables
 load_dotenv()
 
 logger = logging.getLogger(__name__)

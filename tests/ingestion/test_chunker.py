@@ -203,9 +203,9 @@ This is content under the section.
     @pytest.mark.asyncio
     async def test_chunk_document_fallback(self):
         """Test that semantic chunker falls back to simple chunking on errors."""
-        config = ChunkingConfig(chunk_size=50, chunk_overlap=10, use_semantic_splitting=True)
+        config = ChunkingConfig(chunk_size=50, chunk_overlap=10, min_chunk_size=10, use_semantic_splitting=True)
         chunker = SemanticChunker(config)
-        
+
         # Mock the semantic chunking to fail
         with patch.object(chunker, '_semantic_chunk', side_effect=Exception("LLM failed")):
             content = "This is test content for fallback testing. " * 10

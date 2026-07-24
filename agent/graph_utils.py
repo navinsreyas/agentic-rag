@@ -109,18 +109,15 @@ class GraphitiClient:
             return
         
         try:
-            # Create LLMConfig
             llm_config = LLMConfig(
                 api_key=self.llm_api_key,
                 model=self.llm_choice,
                 small_model=self.llm_choice,  # Can be the same as main model
                 base_url=self.llm_base_url
             )
-            
-            # Create OpenAI LLM client
+
             llm_client = OpenAIClient(config=llm_config)
-            
-            # Create OpenAI embedder
+
             embedder = OpenAIEmbedder(
                 config=OpenAIEmbedderConfig(
                     api_key=self.embedding_api_key,
@@ -129,8 +126,7 @@ class GraphitiClient:
                     base_url=self.embedding_base_url
                 )
             )
-            
-            # Initialize Graphiti with custom clients
+
             self.graphiti = Graphiti(
                 self.neo4j_uri,
                 self.neo4j_user,
@@ -139,8 +135,7 @@ class GraphitiClient:
                 embedder=embedder,
                 cross_encoder=OpenAIRerankerClient(client=llm_client, config=llm_config)
             )
-            
-            # Build indices and constraints
+
             await self.graphiti.build_indices_and_constraints()
             
             self._initialized = True
@@ -268,7 +263,6 @@ class GraphitiClient:
         if not self._initialized:
             await self.initialize()
         
-        # Use Graphiti search to find related information about the entity
         results = await self._require_graphiti().search(f"relationships involving {entity_name}")
         
         # Extract entity information from the search results
@@ -318,7 +312,6 @@ class GraphitiClient:
         if not self._initialized:
             await self.initialize()
 
-        # Search for temporal information about the entity
         results = await self._require_graphiti().search(f"timeline history of {entity_name}")
 
         timeline = []

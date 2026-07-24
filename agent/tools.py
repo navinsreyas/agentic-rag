@@ -27,7 +27,6 @@ from .graph_utils import (
 from .models import ChunkResult, GraphSearchResult, DocumentMetadata
 from .providers import get_embedding_client, get_embedding_model
 
-# Load environment variables
 load_dotenv()
 
 logger = logging.getLogger(__name__)
@@ -112,10 +111,8 @@ async def vector_search_tool(input_data: VectorSearchInput) -> List[ChunkResult]
         List of matching chunks
     """
     try:
-        # Generate embedding for the query
         embedding = await generate_embedding(input_data.query)
-        
-        # Perform vector search
+
         results = await vector_search(
             embedding=embedding,
             limit=input_data.limit
@@ -183,10 +180,8 @@ async def hybrid_search_tool(input_data: HybridSearchInput) -> List[ChunkResult]
         List of matching chunks
     """
     try:
-        # Generate embedding for the query
         embedding = await generate_embedding(input_data.query)
-        
-        # Perform hybrid search
+
         results = await hybrid_search(
             embedding=embedding,
             query_text=input_data.query,
@@ -317,7 +312,6 @@ async def get_entity_timeline_tool(input_data: EntityTimelineInput) -> List[Dict
         if input_data.end_date:
             end_date = datetime.fromisoformat(input_data.end_date)
         
-        # Get timeline from graph
         timeline = await graph_client.get_entity_timeline(
             entity_name=input_data.entity_name,
             start_date=start_date,

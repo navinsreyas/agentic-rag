@@ -10,7 +10,6 @@ from dataclasses import dataclass
 
 from dotenv import load_dotenv
 
-# Load environment variables
 load_dotenv()
 
 logger = logging.getLogger(__name__)
@@ -164,7 +163,6 @@ class SemanticChunker:
             **(metadata or {})
         }
 
-        # Section-aware pre-splitting: split at detected headings
         sections = self._section_aware_split(content)
 
         all_chunks: List[DocumentChunk] = []

@@ -32,7 +32,6 @@ from .tools import (
     PageIndexSearchInput,
 )
 
-# Load environment variables
 load_dotenv()
 
 logger = logging.getLogger(__name__)

@@ -9,7 +9,6 @@ from pydantic_ai.models.openai import OpenAIModel
 import openai
 from dotenv import load_dotenv
 
-# Load environment variables
 load_dotenv()
 
 # Try to import native Groq support (requires pydantic-ai[groq])

@@ -13,7 +13,6 @@ import asyncpg
 from asyncpg.pool import Pool
 from dotenv import load_dotenv
 
-# Load environment variables
 load_dotenv()
 
 logger = logging.getLogger(__name__)

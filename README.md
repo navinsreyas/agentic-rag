@@ -24,31 +24,35 @@ The backend is FastAPI (streaming + non-streaming), with PostgreSQL/pgvector for
 
 ## Architecture
 
-User Query
-                          │
-                          ▼
-          ┌──────────────────────────────┐
-          │        FastAPI (api.py)       │
-          │  /chat  /chat/stream          │
-          │  /search/{vector,graph,hybrid}│
-          └───────────────┬──────────────┘
-                          ▼
-          ┌──────────────────────────────┐
-          │       Pydantic AI Agent       │
-          │  Primary : Groq Llama-3.3-70b │
-          │  Fallback: OpenAI gpt-4o-mini │
-          └──┬────────┬────────┬────────┬─┘
-             ▼        ▼        ▼        ▼
-      ┌──────────┐ ┌──────┐ ┌───────┐ ┌──────────┐
-      │  vector/ │ │graph │ │ page  │ │pageindex │
-      │  hybrid  │ │tools │ │vector │ │ (cloud)  │
-      └────┬─────┘ └──┬───┘ └───┬───┘ └────┬─────┘
-           ▼          ▼         ▼          ▼
-      ┌─────────┐ ┌──────┐ ┌────────┐ ┌──────────┐
-      │Postgres │ │Neo4j │ │Postgres│ │pageindex │
-      │pgvector │ │+Graph│ │ pages  │ │  .ai API │
-      └─────────┘ └──────┘ └────────┘ └──────────┘
-
+```text
+                          User Query
+                              |
+                              v
+              +------------------------------+
+              |        FastAPI (api.py)       |
+              |  /chat   /chat/stream         |
+              |  /search/{vector,graph,hybrid}|
+              +---------------+--------------+
+                              |
+                              v
+              +------------------------------+
+              |       Pydantic AI Agent       |
+              |  Primary : Groq Llama-3.3-70b |
+              |  Fallback: OpenAI gpt-4o-mini |
+              +--+--------+--------+--------+-+
+                 |        |        |        |
+                 v        v        v        v
+            +--------+ +------+ +-------+ +----------+
+            | vector | |graph | | page  | |pageindex |
+            | hybrid | |tools | |vector | | (cloud)  |
+            +---+----+ +--+---+ +---+---+ +----+-----+
+                |         |         |          |
+                v         v         v          v
+            +--------+ +------+ +--------+ +----------+
+            |Postgres| |Neo4j | |Postgres| |pageindex |
+            |pgvector| |+Graph| | pages  | | .ai API  |
+            +--------+ +------+ +--------+ +----------+
+```
 ## Retrieval Tools
 
 The agent registers 9 tools: two vector, three graph, two page-level, and two document tools. The system prompt enforces one tool call per response, with a hard cap of two per turn to prevent tool-call loops.

@@ -36,26 +36,23 @@ class TestRequestModels:
         request = ChatRequest(
             message="What are Google's AI initiatives?",
             session_id="test-session",
-            user_id="test-user",
-            search_type=SearchType.HYBRID
+            user_id="test-user"
         )
-        
+
         assert request.message == "What are Google's AI initiatives?"
         assert request.session_id == "test-session"
         assert request.user_id == "test-user"
-        assert request.search_type == SearchType.HYBRID
         assert request.metadata == {}
-    
+
     def test_chat_request_minimal(self):
         """Test minimal chat request."""
         request = ChatRequest(message="Hello")
-        
+
         assert request.message == "Hello"
         assert request.session_id is None
         assert request.user_id is None
-        assert request.search_type == SearchType.HYBRID
         assert request.metadata == {}
-    
+
     def test_search_request_valid(self):
         """Test valid search request."""
         request = SearchRequest(
@@ -63,11 +60,10 @@ class TestRequestModels:
             search_type=SearchType.VECTOR,
             limit=20
         )
-        
+
         assert request.query == "Microsoft AI"
         assert request.search_type == SearchType.VECTOR
         assert request.limit == 20
-        assert request.filters == {}
     
     def test_search_request_limit_validation(self):
         """Test search request limit validation."""

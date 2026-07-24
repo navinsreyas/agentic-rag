@@ -54,7 +54,6 @@ from .tools import (
     DocumentListInput
 )
 
-# Load environment variables
 load_dotenv()
 
 logger = logging.getLogger(__name__)
@@ -190,11 +189,9 @@ async def lifespan(app: FastAPI):
     logger.info("Starting up agentic RAG API...")
     
     try:
-        # Initialize database connections
         await initialize_database()
         logger.info("Database initialized")
-        
-        # Initialize graph database
+
         await initialize_graph()
         logger.info("Graph database initialized")
         
@@ -259,8 +256,7 @@ async def get_or_create_session(request: ChatRequest) -> str:
         session = await get_session(request.session_id)
         if session:
             return request.session_id
-    
-    # Create new session
+
     return await create_session(
         user_id=request.user_id,
         metadata=request.metadata
@@ -305,7 +301,6 @@ def extract_tool_calls(result) -> List[ToolCall]:
     tools_used = []
     
     try:
-        # Get all messages from the result
         messages = result.all_messages()
         
         for message in messages:
@@ -314,8 +309,6 @@ def extract_tool_calls(result) -> List[ToolCall]:
                     # Check if this is a tool call part
                     if part.__class__.__name__ == 'ToolCallPart':
                         try:
-                            # Debug logging to understand structure
-                            logger.debug(f"ToolCallPart attributes: {dir(part)}")
                             logger.debug(f"ToolCallPart content: tool_name={getattr(part, 'tool_name', None)}")
                             
                             # Extract tool information safely
@@ -345,7 +338,6 @@ def extract_tool_calls(result) -> List[ToolCall]:
                                 except Exception:
                                     pass
                             
-                            # Get tool call ID
                             tool_call_id = None
                             if hasattr(part, 'tool_call_id'):
                                 tool_call_id = str(part.tool_call_id) if part.tool_call_id else None
@@ -386,15 +378,13 @@ async def save_conversation_turn(
         assistant_message: Assistant's response
         metadata: Optional metadata
     """
-    # Save user message
     await add_message(
         session_id=session_id,
         role="user",
         content=user_message,
         metadata=metadata or {}
     )
-    
-    # Save assistant message
+
     await add_message(
         session_id=session_id,
         role="assistant",
@@ -422,15 +412,13 @@ async def execute_agent(
         Tuple of (agent response, tools used)
     """
     try:
-        # Create dependencies
         deps = AgentDependencies(
             session_id=session_id,
             user_id=user_id
         )
-        
-        # Get conversation context
+
         context = await get_conversation_context(session_id)
-        
+
         # Build prompt with context
         full_prompt = message
         if context:
@@ -521,10 +509,8 @@ async def chat(request: ChatRequest):
     # the 400 isn't caught and reclassified as a 500.
     validate_query(request.message, "message")
     try:
-        # Get or create session
         session_id = await get_or_create_session(request)
-        
-        # Execute agent
+
         response, tools_used = await execute_agent(
             message=request.message,
             session_id=session_id,
@@ -548,23 +534,20 @@ async def chat_stream(request: ChatRequest):
     # Validate input before any LLM/DB work (raises 400, outside the try below).
     validate_query(request.message, "message")
     try:
-        # Get or create session
         session_id = await get_or_create_session(request)
-        
+
         async def generate_stream():
             """Generate streaming response using agent.iter() pattern."""
             try:
                 yield f"data: {json.dumps({'type': 'session', 'session_id': session_id})}\n\n"
-                
-                # Create dependencies
+
                 deps = AgentDependencies(
                     session_id=session_id,
                     user_id=request.user_id
                 )
-                
-                # Get conversation context
+
                 context = await get_conversation_context(session_id)
-                
+
                 # Build input with context
                 full_prompt = request.message
                 if context:
@@ -634,7 +617,6 @@ async def chat_stream(request: ChatRequest):
                 if run_result is None:
                     return
 
-                # Extract tools used from the final result
                 tools_used = extract_tool_calls(run_result)
                 
                 # Send tools used information
@@ -649,7 +631,6 @@ async def chat_stream(request: ChatRequest):
                     ]
                     yield f"data: {json.dumps({'type': 'tools', 'tools': tools_data})}\n\n"
                 
-                # Save assistant response
                 await add_message(
                     session_id=session_id,
                     role="assistant",
