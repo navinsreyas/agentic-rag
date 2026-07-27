@@ -141,6 +141,20 @@ See `.env.example` for all configuration options. Sentry (`SENTRY_DSN`) and Page
 
 `mcp_server.py` exposes `vector_search`, `hybrid_search`, and `graph_search` over the Model Context Protocol via FastMCP — a thin wrapper reusing the same `agent/tools.py` implementations. See the file header for Claude Desktop config.
 
+## Frontend
+
+`frontend/` is a minimal Next.js + TypeScript UI: a single page with a query box that streams the agent's answer live from `/chat/stream` (Server-Sent Events) and displays colored pills for each tool the agent invoked (vector, hybrid, graph, PageIndex, etc.) — the retrieval routing is the point, so it's shown, not hidden.
+
+**Status:** it runs locally against the deployed backend. It is **not** deployed to Vercel (or anywhere) yet — there is no live UI URL, only the backend's own `/docs`.
+
+To run it:
+
+```bash
+cd frontend
+npm install   # first time only
+npm run dev   # http://localhost:3000, talks to the deployed backend
+```
+
 ## API Reference
 
 Interactive Swagger docs at `/docs` when the server is running.
@@ -165,3 +179,7 @@ Interactive Swagger docs at `/docs` when the server is running.
 pytest
 pytest --cov=agent --cov=ingestion --cov-report=html
 ```
+
+## License
+
+MIT — see [LICENSE](LICENSE).
