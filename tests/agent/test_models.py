@@ -33,16 +33,23 @@ class TestRequestModels:
     
     def test_chat_request_valid(self):
         """Test valid chat request."""
+        session_id = "12345678-1234-5678-1234-567812345678"
         request = ChatRequest(
             message="What are Google's AI initiatives?",
-            session_id="test-session",
+            session_id=session_id,
             user_id="test-user"
         )
 
         assert request.message == "What are Google's AI initiatives?"
-        assert request.session_id == "test-session"
+        assert request.session_id == session_id
         assert request.user_id == "test-user"
         assert request.metadata == {}
+
+    def test_chat_request_invalid_session_id(self):
+        """A non-UUID session_id must be rejected at the Pydantic layer (422 upstream),
+        before it can reach asyncpg's ::uuid cast and surface as a 500."""
+        with pytest.raises(ValueError, match="session_id must be a valid UUID"):
+            ChatRequest(message="hi", session_id="not-a-uuid")
 
     def test_chat_request_minimal(self):
         """Test minimal chat request."""

@@ -2,9 +2,9 @@
 
 A production-grade document intelligence system that answers questions over a mixed corpus of AI-safety research and big-tech strategy documents, using three complementary retrieval strategies routed by an autonomous agent.
 
-**Live demo:** https://agentic-rag-1065091982503.us-east1.run.app
+**Live demo (interactive API docs):** https://agentic-rag-1065091982503.us-east1.run.app/docs
 
-![Lint](https://github.com/navinsreyas/agentic-rag-knowledge-graph/actions/workflows/lint.yml/badge.svg)
+[![Lint](https://github.com/navinsreyas/agentic-rag/actions/workflows/lint.yml/badge.svg)](https://github.com/navinsreyas/agentic-rag/actions/workflows/lint.yml)
 ![Python](https://img.shields.io/badge/python-3.11-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-pgvector-336791)

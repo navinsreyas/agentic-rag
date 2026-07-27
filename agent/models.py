@@ -4,6 +4,7 @@ Pydantic models for data validation and serialization.
 
 from typing import List, Dict, Any, Optional, Literal
 from datetime import datetime
+from uuid import UUID
 from pydantic import BaseModel, Field, ConfigDict, field_validator
 from enum import Enum
 
@@ -26,9 +27,37 @@ class SearchType(str, Enum):
 class ChatRequest(BaseModel):
     """Chat request model."""
     message: str = Field(..., description="User message")
-    session_id: Optional[str] = Field(None, description="Session ID for conversation continuity")
+    session_id: Optional[str] = Field(None, description="Session ID for conversation continuity (must be a valid UUID if provided)")
     user_id: Optional[str] = Field(None, description="User identifier")
     metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
+
+    @field_validator("session_id")
+    @classmethod
+    def validate_session_id(cls, v: Optional[str]) -> Optional[str]:
+        """Reject a malformed session_id at the Pydantic layer (HTTP 422).
+
+        db_utils.get_session()/add_message() etc. all cast session_id with
+        `::uuid` in SQL. Without this check, a malformed value reaches
+        asyncpg raw and surfaces as an unhandled 500 instead of a clear
+        client error. user_id has no such check: it is stored as plain TEXT
+        with no UUID cast anywhere in the schema, so it is genuinely
+        free-form and forcing UUID shape on it would reject valid values.
+        """
+        if v is None:
+            return v
+        try:
+            UUID(v)
+        except ValueError:
+            raise ValueError(f"session_id must be a valid UUID, got {v!r}")
+        return v
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {"message": "What is Constitutional AI?"}
+            ]
+        }
+    )
 
 
 class SearchRequest(BaseModel):
@@ -37,7 +66,14 @@ class SearchRequest(BaseModel):
     search_type: SearchType = Field(default=SearchType.HYBRID, description="Type of search")
     limit: int = Field(default=10, ge=1, le=50, description="Maximum results")
 
-    model_config = ConfigDict(use_enum_values=True)
+    model_config = ConfigDict(
+        use_enum_values=True,
+        json_schema_extra={
+            "examples": [
+                {"query": "What is Constitutional AI?", "limit": 5}
+            ]
+        }
+    )
 
 
 # Response Models

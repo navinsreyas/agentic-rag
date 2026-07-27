@@ -226,8 +226,13 @@ async def lifespan(app: FastAPI):
 # Create FastAPI app
 app = FastAPI(
     title="Agentic RAG with Knowledge Graph",
-    description="AI agent combining vector search and knowledge graph for tech company analysis",
-    version="0.1.0",
+    description=(
+        "An autonomous agent that routes questions across three retrieval "
+        "strategies — hybrid vector search, a temporal knowledge graph, and "
+        "full-page vector search — over a mixed corpus of AI-safety research "
+        "and big-tech strategy documents."
+    ),
+    version="1.0.0",
     lifespan=lifespan
 )
 
@@ -474,6 +479,17 @@ async def execute_agent(
 
 
 # API Endpoints
+@app.get("/")
+async def root():
+    """Service info. Exempt from rate limiting, same as /health."""
+    return {
+        "service": "Agentic RAG with Knowledge Graph",
+        "docs": "/docs",
+        "health": "/health",
+        "repo": "https://github.com/navinsreyas/agentic-rag"
+    }
+
+
 @app.get("/health")
 async def health_check():
     """Health check: probes Postgres and Neo4j independently, each with a short
