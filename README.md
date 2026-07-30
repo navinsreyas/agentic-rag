@@ -77,6 +77,7 @@ The agent registers 9 tools: two vector, three graph, two page-level, and two do
 | Vector database | PostgreSQL + pgvector (Neon) |
 | Graph database | Neo4j + Graphiti (Aura) |
 | API | FastAPI 0.115 + uvicorn (SSE) |
+| Frontend | Next.js (TypeScript), SSE streaming |
 | Deployment | Google Cloud Run + Secret Manager |
 | Observability | Prometheus `/metrics`, Sentry |
 | CI | Ruff + MyPy (GitHub Actions) |
